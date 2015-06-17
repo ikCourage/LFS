@@ -5,23 +5,25 @@ File System
 存储视频音乐和图片等非常棒<br>
 并且可以作为列存储<br>
 
-设置端口号<br>
+#####设置端口号
 LFS --port[-p] 9002<br>
 
-设置文件存储目录（以 / 结尾）<br>
+#####设置文件存储目录（以 / 结尾）
 LFS --dir[-d] Storage/<br>
 
-打开打印模式<br>
+#####打开打印模式
 LFS --print<br>
 
-守护进程<br>
+#####守护进程
 LFS --daemon<br>
 
-设置 Socket 的收发缓存大小<br>
+#####设置 Socket 的收发缓存大小
 LFS --inBufferSize 102400 --outBufferSize 102400<br>
 
 
-测试数据<br>
+###测试数据
+
+-
 
 系统：OS X Yosemite<br>
 处理器：2 GHz Intel Core i7<br>
