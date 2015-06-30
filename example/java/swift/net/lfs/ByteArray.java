@@ -36,7 +36,14 @@ public class ByteArray {
 		if (size < 0) {
 			size = 32;
 		}
-		buf = new byte[size];
+		if (size > 0) {
+			buf = new byte[size];
+		}
+	}
+	
+	public ByteArray(byte[] b)
+	{
+		buf = b;
 	}
 
 	/**

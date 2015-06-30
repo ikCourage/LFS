@@ -16,11 +16,21 @@ public class LFSConnection {
 			_list = new LinkedList<Socket>();
 		}
 		if (_list.size() > 0) {
-			return _list.removeFirst();
+			return _list.removeLast();
 		}
 		else {
 			try {
-				return new Socket(SERVER_HOST, SERVER_PORT);
+				ByteArray b = new ByteArray(8);
+				Socket socket = new Socket(SERVER_HOST, SERVER_PORT);
+				socket.getInputStream().read(b.buf);
+				b.position = 4;
+				int state = b.readInt();
+				b.clear();
+				if (state != 0) {
+					socket.close();
+					socket = null;
+				}
+				return socket;
 			} catch (IOException e) {
 				e.printStackTrace();
 			} catch (Exception e) {
