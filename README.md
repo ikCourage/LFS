@@ -11,6 +11,8 @@ File System
 
 `如果感兴趣可以 ikCourage@163.com 申请成为开发者，源码只对开发者公布（怎么说呢？设计非常酷，但也确实比较复杂，貌似这类没有简单的）`
 
+其他链接：https://git.oschina.net/ikCourage/LFS_FREE<br>
+
 脚本语言使用 lua，why?因为快且小，而且非常简单<br>
 
 #####设置端口号
