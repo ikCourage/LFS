@@ -16,8 +16,8 @@ File System
 #####设置端口号
 LFS --port[-p] 9002<br>
 
-#####设置文件存储目录（以 / 结尾）
-LFS --dir[-d] Storage/<br>
+#####设置文件存储目录
+LFS --dir[-d] Storage<br>
 
 #####打开打印模式
 LFS --print<br>
