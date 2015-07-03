@@ -8,9 +8,10 @@ File System
 存储视频音乐和图片等非常棒<br>
 并且可以作为列存储<br>
 
-`如果感兴趣可以 ikCourage@163.com 申请成为开发者，源码只对开发者公布（怎么说呢？设计非常酷，但也确实比较复杂，貌似这类没有简单的）`
+`如果感兴趣可以 @ikCourage or ikCourage@163.com 申请成为开发者，源码只对开发者公布。怎么说呢？设计非常酷，但也确实比较复杂，貌似这类没有简单的`<br>
+注：这是一个开源项目，你可以自由使用，但对于开发者，我们需要审核，确认是否能承担开发工作。所以，需要 @ME.
 
-其他链接：https://git.oschina.net/ikCourage/LFS_FREE<br>
+其他链接：[git@osc](https://git.oschina.net/ikCourage/LFS_FREE)<br>
 
 脚本语言使用 lua，why?因为快且小，而且非常简单<br>
 
