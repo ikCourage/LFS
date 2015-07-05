@@ -6,7 +6,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 public class LFSByteArray extends ByteArray {
-	static private final int ACTION_TYPE_STATEMENT = 102;
+	static public final int ACTION_TYPE_STATEMENT = 102;
 
 	static private final int EXTERN_TYPE_BYTE = 1;
 	static private final int EXTERN_TYPE_BOOLEAN = -2;
@@ -17,18 +17,12 @@ public class LFSByteArray extends ByteArray {
 	static private final int EXTERN_TYPE_DOUBLE = 7;
 	static private final int EXTERN_TYPE_STRING = -4;
 	static private final int EXTERN_TYPE_STRING_BYTES = -5;
-	//static private final int EXTERN_TYPE_UINT32 = -20;
 	static private final int EXTERN_TYPE_BYTES = -3;
 	static private final int EXTERN_TYPE_NULL = -1;
 
-	protected ByteArray head;
-	protected ByteArray vars;
+	protected String statement;
 	protected int[] varsMeta;
 	protected int varsLength;
-	/**
-	 * 数据大小
-	 */
-	protected int messageLength;
 	/**
 	 * 状态
 	 */
@@ -55,89 +49,86 @@ public class LFSByteArray extends ByteArray {
 	 */
 	public LFSByteArray(int size) {
 		super(size);
-		head = new ByteArray(12);
-		vars = new ByteArray();
-		varsLength = 0;
-		actionType = ACTION_TYPE_STATEMENT;
+		reset();
 	}
 
 	public void putByte(int v)
 	{
-		vars.writeByte(EXTERN_TYPE_BYTE);
-		vars.writeByte(v);
+		writeByte(EXTERN_TYPE_BYTE);
+		writeByte(v);
 		varsLength++;
 	}
 
 	public void putBytes(byte[] v)
 	{
-		vars.writeByte(EXTERN_TYPE_BYTES);
-		vars.writeInt(v.length);
-		vars.write(v);
-		vars.writeByte(0);
+		writeByte(EXTERN_TYPE_BYTES);
+		writeInt(v.length);
+		write(v);
+		writeByte(0);
 		varsLength++;
 	}
 
 	public void putBytes(byte[] v, int off, int len)
 	{
-		vars.writeByte(EXTERN_TYPE_BYTES);
-		vars.writeInt(len);
-		vars.write(v, off, len);
-		vars.writeByte(0);
+		writeByte(EXTERN_TYPE_BYTES);
+		writeInt(len);
+		write(v, off, len);
+		writeByte(0);
 		varsLength++;
 	}
 
 	public void putBoolean(boolean v)
 	{
-		vars.writeByte(EXTERN_TYPE_BOOLEAN);
-		vars.writeBoolean(v);
+		writeByte(EXTERN_TYPE_BOOLEAN);
+		writeBoolean(v);
 		varsLength++;
 	}
 
 	public void putNull()
 	{
-		vars.writeByte(EXTERN_TYPE_NULL);
+		writeByte(EXTERN_TYPE_NULL);
 		varsLength++;
 	}
 
 	public void putShort(int v)
 	{
-		vars.writeByte(EXTERN_TYPE_SHORT);
-		vars.writeShort(v);
+		writeByte(EXTERN_TYPE_SHORT);
+		writeShort(v);
 		varsLength++;
 	}
 
 	public void putChar(int v)
 	{
-		vars.writeByte(EXTERN_TYPE_SHORT);
-		vars.writeChar(v);
+		writeByte(EXTERN_TYPE_SHORT);
+		writeChar(v);
 		varsLength++;
 	}
 
 	public void putInt(int v)
 	{
-		vars.writeByte(EXTERN_TYPE_INT);
-		vars.writeInt(v);
+		writeByte(EXTERN_TYPE_INT);
+		writeInt(v);
 		varsLength++;
 	}
 
 	public void putLong(long v)
 	{
-		vars.writeByte(EXTERN_TYPE_LONG);
-		vars.writeLong(v);
+		writeByte(EXTERN_TYPE_LONG);
+		writeLong(v);
 		varsLength++;
 	}
 
 	public void putFloat(float v)
 	{
-		vars.writeByte(EXTERN_TYPE_FLOAT);
-		vars.writeFloat(v);
+		writeByte(EXTERN_TYPE_FLOAT);
+		writeFloat(v);
 		varsLength++;
 	}
 
 	public void putDouble(double v)
 	{
-		vars.writeByte(EXTERN_TYPE_DOUBLE);
-		vars.writeDouble(v);
+		writeByte(EXTERN_TYPE_DOUBLE);
+		writeDouble(v);
 		varsLength++;
 	}
 
@@ -145,10 +136,10 @@ public class LFSByteArray extends ByteArray {
 	{
 		try {
 			byte[] b = v.getBytes("UTF-8");
-			vars.writeByte(EXTERN_TYPE_STRING);
-			vars.writeInt(b.length);
-			vars.write(b);
-			vars.writeByte(0);
+			writeByte(EXTERN_TYPE_STRING);
+			writeInt(b.length);
+			write(b);
+			writeByte(0);
 			varsLength++;
 		} catch (Exception e) {}
 	}
@@ -157,19 +148,17 @@ public class LFSByteArray extends ByteArray {
 	{
 		try {
 			byte[] b = v.getBytes("UTF-8");
-			vars.writeByte(EXTERN_TYPE_STRING_BYTES);
-			vars.writeInt(b.length);
-			vars.write(b);
-			vars.writeByte(0);
+			writeByte(EXTERN_TYPE_STRING_BYTES);
+			writeInt(b.length);
+			write(b);
+			writeByte(0);
 			varsLength++;
 		} catch (Exception e) {}
 	}
 
 	public void setStatement(String v)
 	{
-		try {
-			write(v.getBytes("UTF-8"));
-		} catch (Exception e) {}
+		statement = v;
 	}
 
 	public void setActionType(int v)
@@ -178,13 +167,25 @@ public class LFSByteArray extends ByteArray {
 	}
 
 	public synchronized void writeTo(OutputStream out) throws IOException {
-		int len = 4 + 4 + vars.size() + size();
-		head.reset();
-		head.writeInt(len);
-		head.writeInt(actionType);
-		head.writeInt(varsLength);
-		head.writeTo(out);
-		vars.writeTo(out);
+		int len = position;
+		switch (actionType) {
+			case ACTION_TYPE_STATEMENT:
+				position = 8;
+				writeInt(varsLength);
+				position = len;
+				try {
+					write(statement.getBytes("UTF-8"));
+				} catch (Exception e) {}
+				len = position;
+				break;
+			default:
+				len = 8;
+				break;
+		}
+		position = 0;
+		writeInt(len - 4);
+		writeInt(actionType);
+		position = len;
 		super.writeTo(out);
 	}
 
@@ -194,111 +195,67 @@ public class LFSByteArray extends ByteArray {
 		writeTo(socket.getOutputStream());
 		socket.getOutputStream().flush();
 		InputStream in = socket.getInputStream();
-		messageLength = readInt(in);
-		state = readInt(in);
-		actionType = readInt(in);
-		varsLength = readInt(in);
-		time = readLong(in);
-		int offset = 0;
-		int size = messageLength - 20;
-		byte[] b = new byte[size];
-		while (offset < size) {
-			offset += in.read(b, offset, size - offset);
+		reset();
+		position = 0;
+		in.read(buf, 0, 4);
+		int size = readInt() + 4;
+		ensureCapacity(size);
+		while (position < size) {
+			position += in.read(buf, position, size - position);
 		}
-		initVars(b, varsLength);
+		initVars();
 		long end = System.currentTimeMillis();
 		totalTime = end - start;
 	}
 
 	public synchronized void reset() {
-		head.reset();
-		vars.reset();
+		position = 12;
 		varsLength = 0;
 		actionType = ACTION_TYPE_STATEMENT;
 		varsMeta = null;
-		super.reset();
+		statement = null;
 	}
 
-	public void init(byte[] b)
+	private void initVars()
 	{
-		reset();
-		buf = b;
-		position = b.length;
-	}
-
-	private void initVars(byte[] b, int length)
-	{
-		reset();
-		vars.buf = b;
-		vars.position = 0;
-		varsLength = length;
-		varsMeta = new int[length * 3];
+		position = 4;
+		state = readInt();
+		actionType = readInt();
+		varsLength = readInt();
+		time = readLong();
+		varsMeta = new int[varsLength * 3];
 		int t = 0;
-		int position = 0;
-		for (int i = 0, j = 0; i < length; i++) {
-			vars.position = position;
-			t = vars.read();
+		for (int i = 0, j = 0; i < varsLength; i++) {
+			t = read();
 			varsMeta[j++] = t;
-			varsMeta[j] = ++position;
+			varsMeta[j] = position;
 			switch (t) {
-			case EXTERN_TYPE_INT:
-			case EXTERN_TYPE_LONG:
-			case EXTERN_TYPE_SHORT:
-				break;
-			case EXTERN_TYPE_DOUBLE:
-			case EXTERN_TYPE_FLOAT:
-				t++;
-				break;
-			case EXTERN_TYPE_BYTE:
-			case EXTERN_TYPE_BOOLEAN:
-				t = 1;
-				break;
-			case EXTERN_TYPE_NULL:
-				t = 0;
-				break;
-			default:
-				varsMeta[j] += 4;
-				position += 5;
-				t = vars.readInt();
-				break;
+				case EXTERN_TYPE_INT:
+				case EXTERN_TYPE_LONG:
+				case EXTERN_TYPE_SHORT:
+					break;
+				case EXTERN_TYPE_DOUBLE:
+				case EXTERN_TYPE_FLOAT:
+					t++;
+					break;
+				case EXTERN_TYPE_BYTE:
+				case EXTERN_TYPE_BOOLEAN:
+					t = 1;
+					break;
+				case EXTERN_TYPE_NULL:
+					t = 0;
+					break;
+				default:
+					t = readInt();
+					position++;
+					varsMeta[j] += 4;
+					break;
 			}
 			j++;
 			varsMeta[j++] = t;
 			position += t;
 		}
 	}
-
-	private int readInt(InputStream in) throws IOException
-	{
-		int ch1 = in.read();
-		int ch2 = in.read();
-		int ch3 = in.read();
-		int ch4 = in.read();
-		return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
-	}
-
-	private long readLong(InputStream in) throws IOException
-	{
-		in.read(readBuffer, 0, 8);
-		return (((long)readBuffer[0] << 56) +
-				((long)(readBuffer[1] & 255) << 48) +
-				((long)(readBuffer[2] & 255) << 40) +
-				((long)(readBuffer[3] & 255) << 32) +
-				((long)(readBuffer[4] & 255) << 24) +
-				((readBuffer[5] & 255) << 16) +
-				((readBuffer[6] & 255) <<  8) +
-				((readBuffer[7] & 255) <<  0));
-	}
-
-	/*private float readFloat(InputStream in) throws IOException
-	{
-		return Float.intBitsToFloat(readInt(in));
-	}
-
-	private double readDouble(InputStream in) throws IOException
-	{
-		return Double.longBitsToDouble(readLong(in));
-	}*/
 
 	public int getLength(int index)
 	{
@@ -314,27 +271,27 @@ public class LFSByteArray extends ByteArray {
 	{
 		if (index < varsLength && null != varsMeta) {
 			switch (varsMeta[index * 3]) {
-			case EXTERN_TYPE_INT:
-				return getInt(index);
-			case EXTERN_TYPE_LONG:
-				return getLong(index);
-			case EXTERN_TYPE_DOUBLE:
-				return getDouble(index);
-			case EXTERN_TYPE_FLOAT:
-				return getFloat(index);
-			case EXTERN_TYPE_SHORT:
-				return getShort(index);
-			case EXTERN_TYPE_BYTE:
-				return getByte(index);
-			case EXTERN_TYPE_BOOLEAN:
-				return getBoolean(index);
-			case EXTERN_TYPE_NULL:
-				return null;
-			case EXTERN_TYPE_STRING:
-			case EXTERN_TYPE_STRING_BYTES:
-				return getString(index);
-			default:
-				return getBytes(index);
+				case EXTERN_TYPE_INT:
+					return getInt(index);
+				case EXTERN_TYPE_LONG:
+					return getLong(index);
+				case EXTERN_TYPE_DOUBLE:
+					return getDouble(index);
+				case EXTERN_TYPE_FLOAT:
+					return getFloat(index);
+				case EXTERN_TYPE_SHORT:
+					return getShort(index);
+				case EXTERN_TYPE_BYTE:
+					return getByte(index);
+				case EXTERN_TYPE_BOOLEAN:
+					return getBoolean(index);
+				case EXTERN_TYPE_NULL:
+					return null;
+				case EXTERN_TYPE_STRING:
+				case EXTERN_TYPE_STRING_BYTES:
+					return getString(index);
+				default:
+					return getBytes(index);
 			}
 		}
 		return null;
@@ -345,8 +302,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_BYTE) {
-				vars.position = varsMeta[++index];
-				return vars.readByte();
+				position = varsMeta[++index];
+				return readByte();
 			}
 		}
 		return 0;
@@ -357,8 +314,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_BYTE) {
-				vars.position = varsMeta[++index];
-				return vars.readUnsignedByte();
+				position = varsMeta[++index];
+				return readUnsignedByte();
 			}
 		}
 		return 0;
@@ -369,11 +326,11 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
-				vars.position = varsMeta[++index];
+				position = varsMeta[++index];
 				index = varsMeta[++index];
 				if (index > 0) {
 					byte[] b = new byte[index];
-					vars.read(b);
+					read(b);
 					return b;
 				}
 			}
@@ -386,12 +343,12 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
-				vars.position = varsMeta[++index];
+				position = varsMeta[++index];
 				index = varsMeta[++index];
 				if (index > 0 && len > 0) {
 					len = len > index ? index : len;
 					byte[] b = new byte[len];
-					vars.read(b);
+					read(b);
 					return b;
 				}
 			}
@@ -404,10 +361,10 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
-				vars.position = varsMeta[++index];
+				position = varsMeta[++index];
 				index = varsMeta[++index];
 				if (index > 0) {
-					vars.read(b);
+					read(b);
 					return b;
 				}
 			}
@@ -420,10 +377,10 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
-				vars.position = varsMeta[++index];
+				position = varsMeta[++index];
 				index = varsMeta[++index];
 				if (index > 0 && len > 0) {
-					vars.read(b, off, len);
+					read(b, off, len);
 					return b;
 				}
 			}
@@ -436,8 +393,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_BOOLEAN) {
-				vars.position = varsMeta[++index];
-				return vars.readBoolean();
+				position = varsMeta[++index];
+				return readBoolean();
 			}
 		}
 		return false;
@@ -448,8 +405,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_SHORT) {
-				vars.position = varsMeta[++index];
-				return vars.readShort();
+				position = varsMeta[++index];
+				return readShort();
 			}
 		}
 		return 0;
@@ -460,8 +417,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_SHORT) {
-				vars.position = varsMeta[++index];
-				return vars.readUnsignedShort();
+				position = varsMeta[++index];
+				return readUnsignedShort();
 			}
 		}
 		return 0;
@@ -472,8 +429,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_SHORT) {
-				vars.position = varsMeta[++index];
-				return vars.readChar();
+				position = varsMeta[++index];
+				return readChar();
 			}
 		}
 		return 0;
@@ -484,8 +441,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_INT) {
-				vars.position = varsMeta[++index];
-				return vars.readInt();
+				position = varsMeta[++index];
+				return readInt();
 			}
 		}
 		return 0;
@@ -496,8 +453,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_LONG) {
-				vars.position = varsMeta[++index];
-				return vars.readLong();
+				position = varsMeta[++index];
+				return readLong();
 			}
 		}
 		return 0;
@@ -508,8 +465,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_FLOAT) {
-				vars.position = varsMeta[++index];
-				return vars.readFloat();
+				position = varsMeta[++index];
+				return readFloat();
 			}
 		}
 		return 0;
@@ -520,8 +477,8 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			if (varsMeta[index] == EXTERN_TYPE_DOUBLE) {
-				vars.position = varsMeta[++index];
-				return vars.readDouble();
+				position = varsMeta[++index];
+				return readDouble();
 			}
 		}
 		return 0;
@@ -532,18 +489,18 @@ public class LFSByteArray extends ByteArray {
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			switch (varsMeta[index]) {
-			case EXTERN_TYPE_STRING:
-			case EXTERN_TYPE_STRING_BYTES:
-				vars.position = varsMeta[++index];
-				index = varsMeta[++index];
-				if (index > 0) {
-					byte[] b = new byte[index];
-					vars.read(b);
-					try {
-						return new String(b, "UTF-8");
-					} catch (Exception e) {}
-				}
-				break;
+				case EXTERN_TYPE_STRING:
+				case EXTERN_TYPE_STRING_BYTES:
+					position = varsMeta[++index];
+					index = varsMeta[++index];
+					if (index > 0) {
+						byte[] b = new byte[index];
+						read(b);
+						try {
+							return new String(b, "UTF-8");
+						} catch (Exception e) {}
+					}
+					break;
 			}
 		}
 		return null;
@@ -551,7 +508,7 @@ public class LFSByteArray extends ByteArray {
 
 	public int getMessageLength()
 	{
-		return messageLength;
+		return position;
 	}
 
 	public int getState()
@@ -592,14 +549,8 @@ public class LFSByteArray extends ByteArray {
 	public void clear()
 	{
 		super.clear();
-		if (null != head) {
-			head.clear();
-		}
-		if (null != vars) {
-			vars.clear();
-			vars = null;
-		}
 		varsMeta = null;
+		statement = null;
 	}
 
 }

@@ -56,7 +56,7 @@ public class ByteArray {
 	 * interpreted as a request for the unsatisfiably large capacity
 	 * {@code (long) Integer.MAX_VALUE + (minCapacity - Integer.MAX_VALUE)}.
 	 */
-	private void ensureCapacity(int minCapacity) {
+	protected void ensureCapacity(int minCapacity) {
 		// overflow-conscious code
 		if (minCapacity - buf.length > 0)
 			grow(minCapacity);
@@ -68,7 +68,7 @@ public class ByteArray {
 	 *
 	 * @param minCapacity the desired minimum capacity
 	 */
-	private void grow(int minCapacity) {
+	protected void grow(int minCapacity) {
 		// overflow-conscious code
 		int oldCapacity = buf.length;
 		int newCapacity = oldCapacity << 1;

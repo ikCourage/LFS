@@ -324,7 +324,7 @@ public class TestAPI {
 					+ "");
 			lb.writeTo(con);
 
-			String theWord = null;
+			//String theWord = null;
 			//for (int i = 0, l = lb.getVarsLength(); i < l; i += 2) {
 			//	theWord = lb.getString(i + 1);
 			//	theWord = theWord.trim().toLowerCase();
