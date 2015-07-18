@@ -20,9 +20,9 @@ vars 的属性：
 
 
 vars.dataData 的属性：
-	size 文件的总大小
-	size2 读取的数据的实际大小
-	size3 此对象在内存中的总大小
+	sizeTotal 文件的总大小
+	size 读取的数据的实际大小
+	sizeMemory 此对象在内存中的总大小
 
 
 
