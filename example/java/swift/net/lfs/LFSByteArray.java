@@ -24,7 +24,11 @@ public class LFSByteArray extends ByteArray {
 	protected int[] varsMeta;
 	protected int varsLength;
 	/**
-	 * 状态
+	 * 系统状态
+	 */
+	protected int status;
+	/**
+	 * 用户状态
 	 */
 	protected int state;
 	/**
@@ -219,10 +223,14 @@ public class LFSByteArray extends ByteArray {
 	private void initVars()
 	{
 		position = 4;
-		state = readInt();
+		status = readInt();
 		actionType = readInt();
+		state = readInt();
 		varsLength = readInt();
 		time = readLong();
+		if (status != 0) {
+			System.out.println("error status: " + status);
+		}
 		varsMeta = new int[varsLength * 3];
 		int t = 0;
 		for (int i = 0, j = 0; i < varsLength; i++) {
@@ -511,6 +519,11 @@ public class LFSByteArray extends ByteArray {
 		return position;
 	}
 
+	public int getStatus()
+	{
+		return status;
+	}
+	
 	public int getState()
 	{
 		return state;

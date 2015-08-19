@@ -20,13 +20,19 @@ public class LFSConnection {
 		}
 		else {
 			try {
-				ByteArray b = new ByteArray(8);
+				ByteArray b = new ByteArray(12);
 				Socket socket = new Socket(SERVER_HOST, SERVER_PORT);
-				socket.getInputStream().read(b.buf);
+				socket.getInputStream().read(b.buf, 0, 4);
+				int size = b.readInt() + 4;
+				b.ensureCapacity(size);
+				while (b.position < size) {
+					b.position += socket.getInputStream().read(b.buf, b.position, size - b.position);
+				}
 				b.position = 4;
-				int state = b.readInt();
+				int status = b.readInt();
 				b.clear();
-				if (state != 0) {
+				if (status != 0) {
+					System.out.println("connection closed. status: " + status);
 					socket.close();
 					socket = null;
 				}
