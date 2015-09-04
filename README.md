@@ -40,7 +40,7 @@ IReadStream readStream = new IReadStream()
 {
 	public boolean init(long fileId, int size, long sizeTotal, long sizeTotalRead, long offset)
 	{
-	    response.setIntHeader("Content-Length", (int)sizeTotalRead);
+		response.setIntHeader("Content-Length", (int)sizeTotalRead);
 		response.setHeader("Cache-Control", "max-age=604800");
 		response.setIntHeader("Etag", 0);
 		return true;
@@ -62,7 +62,7 @@ IReadStream readStream = new IReadStream()
 
 脚本语言使用 lua，why?因为快且小，而且非常简单<br>
 
-### 指南针 <img src="http://pic.sucaibar.com/pic/201307/16/1c1cbb2ccd.png" width="50" height="50">
+指南针 <img src="http://pic.sucaibar.com/pic/201307/16/1c1cbb2ccd.png" width="50" height="50">
 -
 
 
