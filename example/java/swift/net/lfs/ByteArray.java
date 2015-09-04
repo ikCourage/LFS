@@ -8,20 +8,21 @@ import java.util.Arrays;
 
 public class ByteArray {
 	/**
-	 * The buffer where data is stored.
-	 */
-	protected byte buf[];
-
-	/**
 	 * The number of valid bytes in the buffer.
 	 */
 	public int position;
+	/**
+	 * The buffer where data is stored.
+	 */
+	public byte[] buf;
+	private byte[] tempBuffer = new byte[8];
 
 	/**
 	 * Creates a new byte array output stream. The buffer capacity is
 	 * initially 32 bytes, though its size increases if necessary.
 	 */
-	public ByteArray() {
+	public ByteArray()
+	{
 		this(32);
 	}
 
@@ -32,7 +33,8 @@ public class ByteArray {
 	 * @param   size   the initial size.
 	 * @exception  IllegalArgumentException if size is negative.
 	 */
-	public ByteArray(int size) {
+	public ByteArray(int size)
+	{
 		if (size < 0) {
 			size = 32;
 		}
@@ -40,7 +42,7 @@ public class ByteArray {
 			buf = new byte[size];
 		}
 	}
-	
+
 	public ByteArray(byte[] b)
 	{
 		buf = b;
@@ -56,10 +58,18 @@ public class ByteArray {
 	 * interpreted as a request for the unsatisfiably large capacity
 	 * {@code (long) Integer.MAX_VALUE + (minCapacity - Integer.MAX_VALUE)}.
 	 */
-	protected void ensureCapacity(int minCapacity) {
+	protected void ensureCapacity(int minCapacity)
+	{
 		// overflow-conscious code
 		if (minCapacity - buf.length > 0)
-			grow(minCapacity);
+			grow(minCapacity, true);
+	}
+
+	protected void ensureCapacity(int minCapacity, boolean auto)
+	{
+		// overflow-conscious code
+		if (minCapacity - buf.length > 0)
+			grow(minCapacity, auto);
 	}
 
 	/**
@@ -68,12 +78,16 @@ public class ByteArray {
 	 *
 	 * @param minCapacity the desired minimum capacity
 	 */
-	protected void grow(int minCapacity) {
+	protected void grow(int minCapacity, boolean auto)
+	{
 		// overflow-conscious code
-		int oldCapacity = buf.length;
-		int newCapacity = oldCapacity << 1;
-		if (newCapacity < minCapacity)
-			newCapacity = minCapacity;
+		int newCapacity = minCapacity;
+		if (auto) {
+			newCapacity = buf.length << 1;
+			if (newCapacity < minCapacity) {
+				newCapacity = minCapacity;
+			}
+		}
 		buf = Arrays.copyOf(buf, newCapacity);
 	}
 
@@ -82,13 +96,15 @@ public class ByteArray {
 	 *
 	 * @param   b   the byte to be written.
 	 */
-	public synchronized void write(int b) {
+	public void write(int b)
+	{
 		ensureCapacity(position + 1);
 		buf[position] = (byte) b;
 		position += 1;
 	}
 
-	public synchronized void write(byte[] b) {
+	public void write(byte[] b)
+	{
 		write(b, 0, b.length);
 	}
 
@@ -100,7 +116,8 @@ public class ByteArray {
 	 * @param   off   the start offset in the data.
 	 * @param   len   the number of bytes to write.
 	 */
-	public synchronized void write(byte b[], int off, int len) {
+	public void write(byte b[], int off, int len)
+	{
 		if ((off < 0) || (off > b.length) || (len < 0) ||
 				((off + len) - b.length > 0)) {
 			throw new IndexOutOfBoundsException();
@@ -118,86 +135,9 @@ public class ByteArray {
 	 * @param      out   the output stream to which to write the data.
 	 * @exception  IOException  if an I/O error occurs.
 	 */
-	public synchronized void writeTo(OutputStream out) throws IOException {
-		out.write(buf, 0, position);
-	}
-
-	/**
-	 * Resets the <code>count</code> field of this byte array output
-	 * stream to zero, so that all currently accumulated output in the
-	 * output stream is discarded. The output stream can be used again,
-	 * reusing the already allocated buffer space.
-	 *
-	 * @see     java.io.ByteArrayInputStream#count
-	 */
-	public synchronized void reset() {
-		position = 0;
-	}
-
-	/**
-	 * Creates a newly allocated byte array. Its size is the current
-	 * size of this output stream and the valid contents of the buffer
-	 * have been copied into it.
-	 *
-	 * @return  the current contents of this output stream, as a byte array.
-	 * @see     java.io.ByteArrayOutputStream#size()
-	 */
-	public synchronized byte toByteArray()[] {
-		return Arrays.copyOf(buf, position);
-	}
-
-	/**
-	 * Returns the current size of the buffer.
-	 *
-	 * @return  the value of the <code>count</code> field, which is the number
-	 *          of valid bytes in this output stream.
-	 * @see     java.io.ByteArrayOutputStream#count
-	 */
-	public synchronized int size() {
-		return position;
-	}
-
-	/**
-	 * Converts the buffer's contents into a string decoding bytes using the
-	 * platform's default character set. The length of the new <tt>String</tt>
-	 * is a function of the character set, and hence may not be equal to the
-	 * size of the buffer.
-	 *
-	 * <p> This method always replaces malformed-input and unmappable-character
-	 * sequences with the default replacement string for the platform's
-	 * default character set. The {@linkplain java.nio.charset.CharsetDecoder}
-	 * class should be used when more control over the decoding process is
-	 * required.
-	 *
-	 * @return String decoded from the buffer's contents.
-	 * @since  JDK1.1
-	 */
-	public synchronized String toString() {
-		return new String(buf, 0, position);
-	}
-
-	/**
-	 * Converts the buffer's contents into a string by decoding the bytes using
-	 * the named {@link java.nio.charset.Charset charset}. The length of the new
-	 * <tt>String</tt> is a function of the charset, and hence may not be equal
-	 * to the length of the byte array.
-	 *
-	 * <p> This method always replaces malformed-input and unmappable-character
-	 * sequences with this charset's default replacement string. The {@link
-	 * java.nio.charset.CharsetDecoder} class should be used when more control
-	 * over the decoding process is required.
-	 *
-	 * @param      charsetName  the name of a supported
-	 *             {@link java.nio.charset.Charset charset}
-	 * @return     String decoded from the buffer's contents.
-	 * @exception  UnsupportedEncodingException
-	 *             If the named charset is not supported
-	 * @since      JDK1.1
-	 */
-	public synchronized String toString(String charsetName)
-			throws UnsupportedEncodingException
+	public void writeTo(OutputStream out) throws IOException
 	{
-		return new String(buf, 0, position, charsetName);
+		out.write(buf, 0, position);
 	}
 
 	/**
@@ -212,7 +152,8 @@ public class ByteArray {
 	 * @exception  IOException  if an I/O error occurs.
 	 * @see        java.io.FilterOutputStream#out
 	 */
-	public final void writeBoolean(boolean v) {
+	public final void writeBoolean(boolean v)
+	{
 		write(v ? 1 : 0);
 	}
 
@@ -225,7 +166,8 @@ public class ByteArray {
 	 * @exception  IOException  if an I/O error occurs.
 	 * @see        java.io.FilterOutputStream#out
 	 */
-	public final void writeByte(int v) {
+	public final void writeByte(int v)
+	{
 		write(v);
 	}
 
@@ -238,10 +180,11 @@ public class ByteArray {
 	 * @exception  IOException  if an I/O error occurs.
 	 * @see        java.io.FilterOutputStream#out
 	 */
-	public final void writeShort(int v) {
-		writeBuffer[0] = (byte)((v >>> 8) & 0xFF);
-		writeBuffer[1] = (byte)((v >>> 0) & 0xFF);
-		write(writeBuffer, 0, 2);
+	public final void writeShort(int v)
+	{
+		tempBuffer[0] = (byte)((v >>> 8) & 0xFF);
+		tempBuffer[1] = (byte)((v >>> 0) & 0xFF);
+		write(tempBuffer, 0, 2);
 	}
 
 	/**
@@ -253,10 +196,11 @@ public class ByteArray {
 	 * @exception  IOException  if an I/O error occurs.
 	 * @see        java.io.FilterOutputStream#out
 	 */
-	public final void writeChar(int v) {
-		writeBuffer[0] = (byte)((v >>> 8) & 0xFF);
-		writeBuffer[1] = (byte)((v >>> 0) & 0xFF);
-		write(writeBuffer, 0, 2);
+	public final void writeChar(int v)
+	{
+		tempBuffer[0] = (byte)((v >>> 8) & 0xFF);
+		tempBuffer[1] = (byte)((v >>> 0) & 0xFF);
+		write(tempBuffer, 0, 2);
 	}
 
 	/**
@@ -268,15 +212,14 @@ public class ByteArray {
 	 * @exception  IOException  if an I/O error occurs.
 	 * @see        java.io.FilterOutputStream#out
 	 */
-	public final void writeInt(int v) {
-		writeBuffer[0] = (byte)((v >>> 24) & 0xFF);
-		writeBuffer[1] = (byte)((v >>> 16) & 0xFF);
-		writeBuffer[2] = (byte)((v >>>  8) & 0xFF);
-		writeBuffer[3] = (byte)((v >>>  0) & 0xFF);
-		write(writeBuffer, 0, 4);
+	public final void writeInt(int v)
+	{
+		tempBuffer[0] = (byte)((v >>> 24) & 0xFF);
+		tempBuffer[1] = (byte)((v >>> 16) & 0xFF);
+		tempBuffer[2] = (byte)((v >>>  8) & 0xFF);
+		tempBuffer[3] = (byte)((v >>>  0) & 0xFF);
+		write(tempBuffer, 0, 4);
 	}
-
-	private byte writeBuffer[] = new byte[8];
 
 	/**
 	 * Writes a <code>long</code> to the underlying output stream as eight
@@ -287,16 +230,17 @@ public class ByteArray {
 	 * @exception  IOException  if an I/O error occurs.
 	 * @see        java.io.FilterOutputStream#out
 	 */
-	public final void writeLong(long v) {
-		writeBuffer[0] = (byte)(v >>> 56);
-		writeBuffer[1] = (byte)(v >>> 48);
-		writeBuffer[2] = (byte)(v >>> 40);
-		writeBuffer[3] = (byte)(v >>> 32);
-		writeBuffer[4] = (byte)(v >>> 24);
-		writeBuffer[5] = (byte)(v >>> 16);
-		writeBuffer[6] = (byte)(v >>>  8);
-		writeBuffer[7] = (byte)(v >>>  0);
-		write(writeBuffer, 0, 8);
+	public final void writeLong(long v)
+	{
+		tempBuffer[0] = (byte)(v >>> 56);
+		tempBuffer[1] = (byte)(v >>> 48);
+		tempBuffer[2] = (byte)(v >>> 40);
+		tempBuffer[3] = (byte)(v >>> 32);
+		tempBuffer[4] = (byte)(v >>> 24);
+		tempBuffer[5] = (byte)(v >>> 16);
+		tempBuffer[6] = (byte)(v >>>  8);
+		tempBuffer[7] = (byte)(v >>>  0);
+		write(tempBuffer, 0, 8);
 	}
 
 	/**
@@ -312,7 +256,8 @@ public class ByteArray {
 	 * @see        java.io.FilterOutputStream#out
 	 * @see        java.lang.Float#floatToIntBits(float)
 	 */
-	public final void writeFloat(float v) {
+	public final void writeFloat(float v)
+	{
 		writeInt(Float.floatToIntBits(v));
 	}
 
@@ -329,17 +274,13 @@ public class ByteArray {
 	 * @see        java.io.FilterOutputStream#out
 	 * @see        java.lang.Double#doubleToLongBits(double)
 	 */
-	public final void writeDouble(double v) {
+	public final void writeDouble(double v)
+	{
 		writeLong(Double.doubleToLongBits(v));
 	}
 
-	public void clear()
+	public final int read()
 	{
-		buf = null;
-		writeBuffer = null;
-	}
-
-	public final int read() {
 		return buf[position++];
 	}
 
@@ -595,8 +536,6 @@ public class ByteArray {
 		return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
 	}
 
-	protected byte readBuffer[] = new byte[8];
-
 	/**
 	 * See the general contract of the <code>readLong</code>
 	 * method of <code>DataInput</code>.
@@ -615,15 +554,15 @@ public class ByteArray {
 	 * @see        java.io.FilterInputStream#in
 	 */
 	public final long readLong() {
-		read(readBuffer, 0, 8);
-		return (((long)readBuffer[0] << 56) +
-				((long)(readBuffer[1] & 255) << 48) +
-				((long)(readBuffer[2] & 255) << 40) +
-				((long)(readBuffer[3] & 255) << 32) +
-				((long)(readBuffer[4] & 255) << 24) +
-				((readBuffer[5] & 255) << 16) +
-				((readBuffer[6] & 255) <<  8) +
-				((readBuffer[7] & 255) <<  0));
+		read(tempBuffer, 0, 8);
+		return (((long)tempBuffer[0] << 56) +
+				((long)(tempBuffer[1] & 255) << 48) +
+				((long)(tempBuffer[2] & 255) << 40) +
+				((long)(tempBuffer[3] & 255) << 32) +
+				((long)(tempBuffer[4] & 255) << 24) +
+				((tempBuffer[5] & 255) << 16) +
+				((tempBuffer[6] & 255) <<  8) +
+				((tempBuffer[7] & 255) <<  0));
 	}
 
 	/**
@@ -668,6 +607,93 @@ public class ByteArray {
 	 */
 	public final double readDouble() {
 		return Double.longBitsToDouble(readLong());
+	}
+
+	/**
+	 * Creates a newly allocated byte array. Its size is the current
+	 * size of this output stream and the valid contents of the buffer
+	 * have been copied into it.
+	 *
+	 * @return  the current contents of this output stream, as a byte array.
+	 * @see     java.io.ByteArrayOutputStream#size()
+	 */
+	public byte[] toByteArray()
+	{
+		return Arrays.copyOf(buf, position);
+	}
+
+	/**
+	 * Converts the buffer's contents into a string decoding bytes using the
+	 * platform's default character set. The length of the new <tt>String</tt>
+	 * is a function of the character set, and hence may not be equal to the
+	 * size of the buffer.
+	 *
+	 * <p> This method always replaces malformed-input and unmappable-character
+	 * sequences with the default replacement string for the platform's
+	 * default character set. The {@linkplain java.nio.charset.CharsetDecoder}
+	 * class should be used when more control over the decoding process is
+	 * required.
+	 *
+	 * @return String decoded from the buffer's contents.
+	 * @since  JDK1.1
+	 */
+	public String toString()
+	{
+		return new String(buf, 0, position);
+	}
+
+	/**
+	 * Converts the buffer's contents into a string by decoding the bytes using
+	 * the named {@link java.nio.charset.Charset charset}. The length of the new
+	 * <tt>String</tt> is a function of the charset, and hence may not be equal
+	 * to the length of the byte array.
+	 *
+	 * <p> This method always replaces malformed-input and unmappable-character
+	 * sequences with this charset's default replacement string. The {@link
+	 * java.nio.charset.CharsetDecoder} class should be used when more control
+	 * over the decoding process is required.
+	 *
+	 * @param      charsetName  the name of a supported
+	 *             {@link java.nio.charset.Charset charset}
+	 * @return     String decoded from the buffer's contents.
+	 * @exception  UnsupportedEncodingException
+	 *             If the named charset is not supported
+	 * @since      JDK1.1
+	 */
+	public String toString(String charsetName) throws UnsupportedEncodingException
+	{
+		return new String(buf, 0, position, charsetName);
+	}
+
+	/**
+	 * Returns the current size of the buffer.
+	 *
+	 * @return  the value of the <code>count</code> field, which is the number
+	 *          of valid bytes in this output stream.
+	 * @see     java.io.ByteArrayOutputStream#count
+	 */
+	public int size()
+	{
+		return position;
+	}
+
+	/**
+	 * Resets the <code>count</code> field of this byte array output
+	 * stream to zero, so that all currently accumulated output in the
+	 * output stream is discarded. The output stream can be used again,
+	 * reusing the already allocated buffer space.
+	 *
+	 * @see     java.io.ByteArrayInputStream#count
+	 */
+	public void reset()
+	{
+		position = 0;
+	}
+
+	public void clear()
+	{
+		buf = null;
+		tempBuffer = null;
 	}
 
 }

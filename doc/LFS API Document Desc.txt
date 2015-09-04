@@ -17,12 +17,45 @@ vars 的属性：
 	messageLength 收到的数据长度
 	dataData 一个临时对象，隐式用来读取文件内容，然后放到此对象中
 	dataFile 打开的文件，每次 data_open 都会变化，即最后一次打开的文件（特别注意：写入、读取等操作都作用于此文件上）
+	indexWrite 写“唯一索引”的工具（是线程安全的）
 
 
 vars.dataData 的属性：
 	sizeTotal 文件的总大小
 	size 读取的数据的实际大小
 	sizeMemory 此对象在内存中的总大小
+
+vars.indexWrite 的属性：
+	file 文件 ID，如果是 -1 则追加写入一个新文件（默认：-1）
+	buffer 将要写入的内容
+	size 将要写入的字节大小（默认是 buffer 的大小）
+	offset buffer 中的开始偏移（默认：0）
+	sizeBlockMin 默认为 0，目前建议一直为 0，此处需要详解（修改文件时，是速度快的关键）
+	link 默认为 0，目前建议一直为 0，此处需要详解（修改文件时，是速度快的关键）
+	
+	//索引的属性（同 data_write_index 的参数）
+	indexSizeBlockMin 默认为 0，目前建议一直为 0，此处需要详解
+	indexSizeBlockMinFirst 默认为 0，目前建议一直为 0，此处需要详解
+
+vars.indexWrite 的方法：
+	示例：（使用 ":"）
+		indexWrite:setIndex("key");
+		id = indexWrite:write();
+
+	/**
+	 * （同 data_writeIndex 的参数）
+	 * @param key 将要进行哈希的对象
+	 * @param size 将要进行哈希的字节数量（默认：-1，key 的全部大小）
+	 * @param length 默认为 0（建议一直为 0），哈希表的大小
+	 */
+	setIndex(key:Object, size:int = -1, length:int = 0):void;
+
+	/**
+	 * 将 buffer 写入 file 对应的文件，并根据 setIndex 构建唯一索引
+	 * 如果已经存在唯一索引，则不重复写入
+	 * @return 索引对应的文件 ID（小于 0 则失败）
+	 */
+	write():long;
 
 
 
@@ -96,7 +129,7 @@ getFileLengthDeleted(dataFile:DataFile):int;
 ***************************
 
 
-写入索引，返回大于 0 为成功
+写入索引，返回大于 0 为成功（已经废弃，原因：只能单线程，应使用新的 vars.indexWrite）
 /**
  * @param file 对应索引的 文件 ID
  * @param obj 将要进行哈希的对象
@@ -106,7 +139,7 @@ getFileLengthDeleted(dataFile:DataFile):int;
  * @param sizeBlockMinFirst 默认为 0，目前建议一直为 0，此处需要详解
  * return
  */
-data_write_index(file:int, obj:Object, size:int, length:int = 0, sizeBlockMin:int = 0, sizeBlockMinFirst:int = 0):int;
+//data_write_index(file:int, obj:Object, size:int, length:int = 0, sizeBlockMin:int = 0, sizeBlockMinFirst:int = 0):int;
 
 
 读取索引，根据索引返回文件 ID，小于 0 则失败（可能还没有此索引）
@@ -127,7 +160,7 @@ data_read_index(obj:Object, size:int, length:int):long;
  * @param length 默认为 0（建议一直为 0），哈希表的大小
  * return
  */
-data_delete_index(obj:Objecy, size:int, length:int):int;
+data_delete_index(obj:Object, size:int, length:int):int;
 
 
 ***************************

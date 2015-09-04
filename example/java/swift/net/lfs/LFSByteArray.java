@@ -5,24 +5,33 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
-public class LFSByteArray extends ByteArray {
+public class LFSByteArray extends ByteArray
+{
+	static public final long UINT_MAX = ((long)1 << 32) - 1;
+
+	static public final int EXTERN_TYPE_BYTE = 1;
+	static public final int EXTERN_TYPE_BOOLEAN = -2;
+	static public final int EXTERN_TYPE_SHORT = 2;
+	static public final int EXTERN_TYPE_INT = 4;
+	static public final int EXTERN_TYPE_LONG = 8;
+	static public final int EXTERN_TYPE_FLOAT = 3;
+	static public final int EXTERN_TYPE_DOUBLE = 7;
+	static public final int EXTERN_TYPE_STRING = -4;
+	static public final int EXTERN_TYPE_STRING_BYTES = -5;
+	static public final int EXTERN_TYPE_BYTES = -3;
+	static public final int EXTERN_TYPE_NULL = -1;
+
 	static public final int ACTION_TYPE_STATEMENT = 102;
+	
+	static public final int WRITE_TYPE_NORMAL = 0;
+	static public final int WRITE_TYPE_STREAM_TRY_READ = 1;
+	static public final int WRITE_TYPE_STREAM_TRY_SKIP = 2;
 
-	static private final int EXTERN_TYPE_BYTE = 1;
-	static private final int EXTERN_TYPE_BOOLEAN = -2;
-	static private final int EXTERN_TYPE_SHORT = 2;
-	static private final int EXTERN_TYPE_INT = 4;
-	static private final int EXTERN_TYPE_LONG = 8;
-	static private final int EXTERN_TYPE_FLOAT = 3;
-	static private final int EXTERN_TYPE_DOUBLE = 7;
-	static private final int EXTERN_TYPE_STRING = -4;
-	static private final int EXTERN_TYPE_STRING_BYTES = -5;
-	static private final int EXTERN_TYPE_BYTES = -3;
-	static private final int EXTERN_TYPE_NULL = -1;
+	public int STRING_TYPE = EXTERN_TYPE_STRING_BYTES;
 
-	protected String statement;
 	protected int[] varsMeta;
 	protected int varsLength;
+	protected int messageLength;
 	/**
 	 * 系统状态
 	 */
@@ -36,22 +45,24 @@ public class LFSByteArray extends ByteArray {
 	 */
 	protected int actionType;
 	/**
-	 * 时间
+	 * Server 用时
 	 */
 	protected long time;
 	/**
-	 * 全部时间
+	 * 全部用时（含通信用时）
 	 */
-	protected long totalTime;
+	public long totalTime;
 
-	public LFSByteArray() {
+	public LFSByteArray()
+	{
 		this(32);
 	}
 
 	/**
 	 * @param size
 	 */
-	public LFSByteArray(int size) {
+	public LFSByteArray(int size)
+	{
 		super(size);
 		reset();
 	}
@@ -140,7 +151,7 @@ public class LFSByteArray extends ByteArray {
 	{
 		try {
 			byte[] b = v.getBytes("UTF-8");
-			writeByte(EXTERN_TYPE_STRING);
+			writeByte(STRING_TYPE);
 			writeInt(b.length);
 			write(b);
 			writeByte(0);
@@ -160,9 +171,18 @@ public class LFSByteArray extends ByteArray {
 		} catch (Exception e) {}
 	}
 
-	public void setStatement(String v)
+	public boolean setStatement(String v) throws Exception
 	{
-		statement = v;
+		if (position == 12) {
+			try {
+				byte[] b = v.getBytes("UTF-8");
+				writeInt(b.length);
+				write(b);
+				writeByte(0);
+				return true;
+			} catch (Exception e) {}
+		}
+		throw new Exception("Must be the first");
 	}
 
 	public void setActionType(int v)
@@ -170,17 +190,13 @@ public class LFSByteArray extends ByteArray {
 		actionType = v;
 	}
 
-	public synchronized void writeTo(OutputStream out) throws IOException {
+	public void writeTo(OutputStream out) throws IOException
+	{
 		int len = position;
 		switch (actionType) {
 			case ACTION_TYPE_STATEMENT:
 				position = 8;
 				writeInt(varsLength);
-				position = len;
-				try {
-					write(statement.getBytes("UTF-8"));
-				} catch (Exception e) {}
-				len = position;
 				break;
 			default:
 				len = 8;
@@ -193,47 +209,182 @@ public class LFSByteArray extends ByteArray {
 		super.writeTo(out);
 	}
 
-	public synchronized void writeTo(Socket socket) throws IOException
+	private void __writeTo(Socket socket) throws IOException
 	{
-		long start = System.currentTimeMillis();
+		totalTime = System.currentTimeMillis();
 		writeTo(socket.getOutputStream());
 		socket.getOutputStream().flush();
 		InputStream in = socket.getInputStream();
 		reset();
 		position = 0;
-		in.read(buf, 0, 4);
-		int size = readInt() + 4;
-		ensureCapacity(size);
-		while (position < size) {
-			position += in.read(buf, position, size - position);
+		messageLength = 28;
+		ensureCapacity(messageLength, false);
+		int bytesAvalibale = 0;
+		while (position < messageLength) {
+			bytesAvalibale = in.read(buf, position, messageLength - position);
+			if (bytesAvalibale > 0) {
+				position += bytesAvalibale;
+			}
+			else if (bytesAvalibale < 0) {
+				throw new IOException("Broken Pipe");
+			}
 		}
-		initVars();
-		long end = System.currentTimeMillis();
-		totalTime = end - start;
 	}
 
-	public synchronized void reset() {
-		position = 12;
-		varsLength = 0;
-		actionType = ACTION_TYPE_STATEMENT;
-		varsMeta = null;
-		statement = null;
-	}
-
-	private void initVars()
+	/**
+	 * 写入数据并返回读取的数据
+	 * @param socket
+	 * @return status == 0 && state >= 0（方便判断返回结果，通常 state < 0 表示错误，但具体含义由用户自己决定）
+	 * @throws IOException
+	 */
+	public boolean writeTo(Socket socket) throws IOException
 	{
-		position = 4;
+		return writeTo(socket, WRITE_TYPE_NORMAL);
+	}
+	
+	/**
+	 * 写入数据并返回读取的数据
+	 * @param socket
+	 * @param type <ul><ul>
+	 * <li>WRITE_TYPE_NORMAL: 读取全部数据并解析</li>
+	 * <li>WRITE_TYPE_STREAM_TRY_READ: 当失败时读取全部数据并解析</li>
+	 * <li>WRITE_TYPE_STREAM_TRY_SKIP: 当失败时忽略后续数据</li></ul></ul>
+	 * @return status == 0 && state >= 0（方便判断返回结果，通常 state < 0 表示错误，但具体含义由用户自己决定）
+	 * @throws IOException
+	 */
+	public boolean writeTo(Socket socket, int type) throws IOException
+	{
+		return writeTo(socket, type, null);
+	}
+
+	/**
+	 * 写入数据并返回读取的数据
+	 * @param socket
+	 * @param type <ul><ul>
+	 * <li>WRITE_TYPE_NORMAL: 读取全部数据并解析</li>
+	 * <li>WRITE_TYPE_STREAM_TRY_READ: 当失败时读取全部数据并解析</li>
+	 * <li>WRITE_TYPE_STREAM_TRY_SKIP: 当失败时忽略后续数据</li></ul></ul>
+	 * @param streamParse
+	 * @return status == 0 && state >= 0（方便判断返回结果，通常 state < 0 表示错误，但具体含义由用户自己决定）
+	 * @throws IOException
+	 */
+	public boolean writeTo(Socket socket, int type, IStreamParse streamParse) throws IOException
+	{
+		__writeTo(socket);
+		position = 0;
+		
+		messageLength = readInt() + 4;
 		status = readInt();
 		actionType = readInt();
 		state = readInt();
 		varsLength = readInt();
 		time = readLong();
-		if (status != 0) {
-			System.out.println("error status: " + status);
+		
+		if (type == WRITE_TYPE_NORMAL) {
+			readStream(socket, streamParse);
 		}
-		varsMeta = new int[varsLength * 3];
+		else if (status != 0 || state < 0) {
+			if (type == WRITE_TYPE_STREAM_TRY_READ) {
+				readStream(socket, streamParse);
+			}
+			else if (type == WRITE_TYPE_STREAM_TRY_SKIP) {
+				socket.getInputStream().skip(messageLength - position);
+			}
+		}
+		else if (null != streamParse) {
+			readStream(socket, streamParse);
+		}
+		return status == 0 && state >= 0;
+	}
+
+	public void readStream(Socket socket, IStreamParse streamParse) throws IOException
+	{
+		ensureCapacity(messageLength, false);
+		InputStream in = socket.getInputStream();
+		int bytesAvalibale = 0;
+		while (position < messageLength) {
+			bytesAvalibale = in.read(buf, position, messageLength - position);
+			if (bytesAvalibale > 0) {
+				if (null != streamParse) {
+					streamParse.parseData(buf, bytesAvalibale, position, messageLength);
+				}
+				position += bytesAvalibale;
+			}
+			else if (bytesAvalibale < 0) {
+				throw new IOException("Broken Pipe");
+			}
+		}
+		initVars(false);
+		totalTime = System.currentTimeMillis() - totalTime;
+	}
+
+	public int readNext(Socket socket) throws IOException
+	{
+		return readNext(socket.getInputStream(), false);
+	}
+
+	public int readNext(Socket socket, boolean initVars) throws IOException
+	{
+		return readNext(socket.getInputStream(), initVars);
+	}
+
+	public int readNext(InputStream in) throws IOException
+	{
+		return readNext(in, false);
+	}
+
+	public int readNext(InputStream in, boolean initVars) throws IOException
+	{
+		int bytesAvalibale = -1;
+		if (position < messageLength) {
+			bytesAvalibale = in.read(buf, position, messageLength - position);
+			if (bytesAvalibale > 0) {
+				position += bytesAvalibale;
+				if (position == messageLength) {
+					if (initVars == true) {
+						initVars(true);
+					}
+					totalTime = System.currentTimeMillis() - totalTime;
+				}
+			}
+			else if (bytesAvalibale < 0) {
+				throw new IOException("Broken Pipe");
+			}
+		}
+		return bytesAvalibale;
+	}
+
+	public int initVars(boolean readHead)
+	{
+		return initVars(readHead, 0, -1);
+	}
+
+	public int initVars(boolean readHead, int start, int end)
+	{
+		if (readHead == true) {
+			position = 0;
+			messageLength = readInt() + 4;
+			status = readInt();
+			actionType = readInt();
+			state = readInt();
+			varsLength = readInt();
+			time = readLong();
+		}
+		if (null == varsMeta) {
+			varsMeta = new int[varsLength * 3];
+		}
+		if (end == -1 || end >= varsLength) {
+			end = varsLength - 1;
+		}
+		if (start == 0) {
+			position = 28;
+		}
+		else {
+			position = varsMeta[(start - 1) * 3 + 1] + varsMeta[(start - 1) * 3 + 2];
+		}
+		int len = buf.length;
 		int t = 0;
-		for (int i = 0, j = 0; i < varsLength; i++) {
+		for (int j = start * 3; start <= end && position < len; start++) {
 			t = read();
 			varsMeta[j++] = t;
 			varsMeta[j] = position;
@@ -254,15 +405,24 @@ public class LFSByteArray extends ByteArray {
 					t = 0;
 					break;
 				default:
-					t = readInt();
-					position++;
-					varsMeta[j] += 4;
+					if (position + 5 <= len) {
+						t = readInt();
+						position++;
+						varsMeta[j] += 4;
+						if (position + t > len) {
+							break;
+						}
+					}
+					else {
+						break;
+					}
 					break;
 			}
 			j++;
 			varsMeta[j++] = t;
 			position += t;
 		}
+		return start;
 	}
 
 	public int getLength(int index)
@@ -333,14 +493,18 @@ public class LFSByteArray extends ByteArray {
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
-				position = varsMeta[++index];
-				index = varsMeta[++index];
-				if (index > 0) {
-					byte[] b = new byte[index];
-					read(b);
-					return b;
-				}
+			switch (varsMeta[index]) {
+				case EXTERN_TYPE_BYTES:
+				case EXTERN_TYPE_STRING:
+				case EXTERN_TYPE_STRING_BYTES:
+					position = varsMeta[++index];
+					index = varsMeta[++index];
+					if (index > 0) {
+						byte[] b = new byte[index];
+						read(b);
+						return b;
+					}
+					break;
 			}
 		}
 		return null;
@@ -350,15 +514,19 @@ public class LFSByteArray extends ByteArray {
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
-				position = varsMeta[++index];
-				index = varsMeta[++index];
-				if (index > 0 && len > 0) {
-					len = len > index ? index : len;
-					byte[] b = new byte[len];
-					read(b);
-					return b;
-				}
+			switch (varsMeta[index]) {
+				case EXTERN_TYPE_BYTES:
+				case EXTERN_TYPE_STRING:
+				case EXTERN_TYPE_STRING_BYTES:
+					position = varsMeta[++index];
+					index = varsMeta[++index];
+					if (index > 0 && len > 0) {
+						len = len > index ? index : len;
+						byte[] b = new byte[len];
+						read(b);
+						return b;
+					}
+					break;
 			}
 		}
 		return null;
@@ -368,13 +536,17 @@ public class LFSByteArray extends ByteArray {
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
-				position = varsMeta[++index];
-				index = varsMeta[++index];
-				if (index > 0) {
-					read(b);
-					return b;
-				}
+			switch (varsMeta[index]) {
+				case EXTERN_TYPE_BYTES:
+				case EXTERN_TYPE_STRING:
+				case EXTERN_TYPE_STRING_BYTES:
+					position = varsMeta[++index];
+					index = varsMeta[++index];
+					if (index > 0) {
+						read(b);
+						return b;
+					}
+					break;
 			}
 		}
 		return null;
@@ -384,13 +556,39 @@ public class LFSByteArray extends ByteArray {
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_BYTES) {
+			switch (varsMeta[index]) {
+				case EXTERN_TYPE_BYTES:
+				case EXTERN_TYPE_STRING:
+				case EXTERN_TYPE_STRING_BYTES:
+					position = varsMeta[++index];
+					index = varsMeta[++index];
+					if (index > 0 && len > 0) {
+						read(b, off, len);
+						return b;
+					}
+					break;
+			}
+		}
+		return null;
+	}
+
+	public String getString(int index)
+	{
+		if (index < varsLength && null != varsMeta) {
+			index *= 3;
+			switch (varsMeta[index]) {
+			case EXTERN_TYPE_STRING:
+			case EXTERN_TYPE_STRING_BYTES:
 				position = varsMeta[++index];
 				index = varsMeta[++index];
-				if (index > 0 && len > 0) {
-					read(b, off, len);
-					return b;
+				if (index > 0) {
+					byte[] b = new byte[index];
+					read(b);
+					try {
+						return new String(b, "UTF-8");
+					} catch (Exception e) {}
 				}
+				break;
 			}
 		}
 		return null;
@@ -492,38 +690,16 @@ public class LFSByteArray extends ByteArray {
 		return 0;
 	}
 
-	public String getString(int index)
-	{
-		if (index < varsLength && null != varsMeta) {
-			index *= 3;
-			switch (varsMeta[index]) {
-				case EXTERN_TYPE_STRING:
-				case EXTERN_TYPE_STRING_BYTES:
-					position = varsMeta[++index];
-					index = varsMeta[++index];
-					if (index > 0) {
-						byte[] b = new byte[index];
-						read(b);
-						try {
-							return new String(b, "UTF-8");
-						} catch (Exception e) {}
-					}
-					break;
-			}
-		}
-		return null;
-	}
-
 	public int getMessageLength()
 	{
-		return position;
+		return messageLength > 0 ? messageLength : position;
 	}
 
 	public int getStatus()
 	{
 		return status;
 	}
-	
+
 	public int getState()
 	{
 		return state;
@@ -549,9 +725,19 @@ public class LFSByteArray extends ByteArray {
 		return (double)time / 1000000000;
 	}
 
+	public double getTimeMillis()
+	{
+		return (double)time / 1000000;
+	}
+
 	public String getTimeString()
 	{
 		return String.format("%1$.9f", (double)time / 1000000000);
+	}
+
+	public String getTimeStringMillis()
+	{
+		return String.format("%1$.6f", (double)time / 1000000);
 	}
 
 	public long getTotalTimeMillis()
@@ -559,11 +745,24 @@ public class LFSByteArray extends ByteArray {
 		return totalTime;
 	}
 
+	public void reset()
+	{
+		position = 12;
+		messageLength = 0;
+		varsLength = 0;
+		actionType = ACTION_TYPE_STATEMENT;
+		varsMeta = null;
+	}
+
 	public void clear()
 	{
 		super.clear();
 		varsMeta = null;
-		statement = null;
+	}
+
+	public interface IStreamParse
+	{
+		void parseData(byte[] b, int bytesAvalibale, int position, int messageLength);
 	}
 
 }
