@@ -1,25 +1,24 @@
 # LFS
 File System
 
-`最新版貌似更快了……为虾米呢？最新数据是 24秒，快了 4秒（加了并发"行级锁"之后，怎么可能会更快？一定有其他地方的优化，一定……）`<br>
-`和 C 直接读写文件速度几乎一样，意味着几乎没有额外 CPU 消耗，还用过多的解释吗？`
+######
+    最新版貌似更快了……为虾米呢？最新数据是 24秒，快了 4秒（加了并发"行级锁"之后，怎么可能会更快？一定有其他地方的优化，一定……）
+    和 C 直接读写文件速度几乎一样，意味着几乎没有额外 CPU 消耗，还用过多的解释吗？
 
 非常非常快的文件系统，可以同时存储海量大文件和小文件，高并发<br>
 存储视频音乐和图片等非常棒<br>
 并且可以作为列存储<br>
 
-`如果感兴趣可以 @ikCourage or ikCourage@163.com 申请成为开发者，源码只对开发者公布。怎么说呢？设计非常酷，但也确实比较复杂，貌似这类没有简单的`<br>
-注：这是一个开源项目，你可以自由使用，但对于开发者，我们需要审核，确认是否能承担开发工作。所以，需要 @ME.
 
-其他链接：[git@osc](https://git.oschina.net/ikCourage/LFS_FREE)<br>
+链接：[github](https://github.com/ikCourage/LFS)  [git@osc](https://git.oschina.net/ikCourage/LFS_FREE)<br>
 
 脚本语言使用 lua，why?因为快且小，而且非常简单<br>
 
 #####设置端口号
-LFS --port[-p] 9002<br>
+LFS --port 9002<br>
 
 #####设置文件存储目录
-LFS --dir[-d] Storage<br>
+LFS --dir Storage<br>
 
 #####打开打印模式
 LFS --print<br>
