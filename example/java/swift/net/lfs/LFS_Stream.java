@@ -30,6 +30,11 @@ public class LFS_Stream
 		return readStream(fileName, fileId, readStream, 0, 0, 0, 0, null);
 	}
 
+	static public long readStream(String fileName, long fileId, IReadStream readStream, long offset, long sizeTotalRead)
+	{
+		return readStream(fileName, fileId, readStream, offset, sizeTotalRead, 0, 0, null);
+	}
+
 	/**
 	 * 流式读取字节，用来即时输出数据（当读取的数据不需要处理，即只是过路数据的情况下，能在数据没有完全读取的情况下，流式返回给客户端）<br><br>
 	 * <u>可以让更少的数据在内存驻留，快速返回给客户端</u>
@@ -123,6 +128,9 @@ public class LFS_Stream
 								//变量长度（因为此处是 putBytes<or putString>，所以还需要读取一个 int 为实际内容的大小，其他类型的变量仅通过类型即可判断大小）
 								size = in.readInt();
 								sizeTotalRead = sizeTotalRead > 0 ? sizeTotalRead : sizeTotal;
+								if (sizeTotalRead + offset > sizeTotal) {
+									sizeTotalRead = sizeTotal - offset;
+								}
 								if (null != readStream && readStream.init(fileId, size, sizeTotal, sizeTotalRead, offset) == false) {
 									b = false;
 									sizeTotalReaded = ReadStreamEnum.ERROR_IREAD_STREAM_INIT;
@@ -205,6 +213,11 @@ public class LFS_Stream
 	static public long writeStream(String fileName, long fileId, InputStream inputStream, long sizeTotalWrite)
 	{
 		return writeStream(fileName, fileId, inputStream, sizeTotalWrite, 0, 0, 0, 0, null);
+	}
+
+	static public long writeStream(String fileName, long fileId, InputStream inputStream, long sizeTotalWrite, long offset, long sizeTotal)
+	{
+		return writeStream(fileName, fileId, new WriteStream(inputStream), sizeTotalWrite, offset, sizeTotal, 0, 0, null);
 	}
 
 	/**
