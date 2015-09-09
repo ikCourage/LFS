@@ -577,18 +577,18 @@ public class LFSByteArray extends ByteArray
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			switch (varsMeta[index]) {
-			case EXTERN_TYPE_STRING:
-			case EXTERN_TYPE_STRING_BYTES:
-				position = varsMeta[++index];
-				index = varsMeta[++index];
-				if (index > 0) {
-					byte[] b = new byte[index];
-					read(b);
-					try {
-						return new String(b, "UTF-8");
-					} catch (Exception e) {}
-				}
-				break;
+				case EXTERN_TYPE_STRING:
+				case EXTERN_TYPE_STRING_BYTES:
+					position = varsMeta[++index];
+					index = varsMeta[++index];
+					if (index > 0) {
+						byte[] b = new byte[index];
+						read(b);
+						try {
+							return new String(b, "UTF-8");
+						} catch (Exception e) {}
+					}
+					break;
 			}
 		}
 		return null;

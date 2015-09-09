@@ -164,6 +164,44 @@ data_delete_index(obj:Object, size:int, length:int):int;
 
 
 ***************************
+***************************
+
+
+最喜欢的 ^_^
+
+
+将文件索引写入索引中
+//将网页 ID，记录到词汇 ID 对应的索引中
+/**
+ * @param file 文件 ID（网页 ID）
+ * @param index 索引（词汇 ID）
+ * @param sizeBlockMin 一个建议数值，如果此索引的内容增长迅速，则可能每次分配 sizeBlockMin 大小的空间
+ * @param sizeBlockMinFirst 此为建议的第一次分配的空间大小
+ * return 返回大于 0 为成功
+ */
+data_write_in_index(file:int, index:int, sizeBlockMin:int = 0, sizeBlockMinFirst:int = 0):long;
+
+从索引中读取文件索引
+//此处并不是读取该索引，只是判断 file 是否存在于 index 的的索引中
+/**
+ * @param file 文件 ID（网页 ID）
+ * @param index 索引（词汇 ID）
+ * return 返回大于 0 为成功
+ */
+data_read_in_index(file:int, index:int):long;
+
+从索引中删除文件索引
+//将 file 从 index 的索引中删除
+/**
+ * @param file 文件 ID（网页 ID）
+ * @param index 索引（词汇 ID）
+ * return 返回 1 为成功
+ */
+data_delete_in_index(file:int, index:int):int;
+
+
+***************************
+***************************
 
 
 查找是否有匹配的项，返回文件 ID，如果没有，则返回 -1，其他的错误返回负数
