@@ -71,8 +71,8 @@ public class LFS_Stream
 		int bytesAvalibale;
 
 		Socket con = LFSConnection.getConnection();
+		LFSByteArray lb = new LFSByteArray();
 		try {
-			LFSByteArray lb = new LFSByteArray();
 			DataInputStream in = new DataInputStream(con.getInputStream());
 
 			boolean b = true;
@@ -187,11 +187,10 @@ public class LFS_Stream
 					sizeTotalReaded = ReadStreamEnum.ERROR_SOCKET_BACK_VALUE;
 				}
 			}
-
-			lb.clear();
 		} catch (Exception e) {
 			sizeTotalReaded = ReadStreamEnum.ERROR_SOCKET_CLOSED;
 		}
+		lb.clear();
 		if (sizeTotalReaded >= 0) {
 			LFSConnection.put(con);
 		}
@@ -276,9 +275,8 @@ public class LFS_Stream
 		long sizeTotalWrited = 0;
 		int size;
 		Socket con = LFSConnection.getConnection();
+		LFSByteArray lb = new LFSByteArray();
 		try {
-			LFSByteArray lb = new LFSByteArray();
-
 			boolean b = true;
 			while (b == true) {
 				if ((size = (int)(sizeTotalWrite - sizeTotalWrited)) > sizeMaxWrite) {
@@ -364,11 +362,10 @@ public class LFS_Stream
 					fileId = WriteStreamEnum.ERROR_IWRITE_STREAM_PARSE_DATA;
 				}
 			}
-
-			lb.clear();
 		} catch (Exception e) {
 			fileId = WriteStreamEnum.ERROR_SOCKET_CLOSED;
 		}
+		lb.clear();
 		if (fileId >= 0) {
 			LFSConnection.put(con);
 		}

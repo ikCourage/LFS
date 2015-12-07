@@ -47,7 +47,7 @@ public class LFSByteArray extends ByteArray
 	/**
 	 * Server 用时
 	 */
-	protected long time;
+	protected double time;
 	/**
 	 * 全部用时（含通信用时）
 	 */
@@ -278,7 +278,7 @@ public class LFSByteArray extends ByteArray
 		actionType = readInt();
 		state = readInt();
 		varsLength = readInt();
-		time = readLong();
+		time = readDouble();
 		
 		if (type == WRITE_TYPE_NORMAL) {
 			readStream(socket, streamParse);
@@ -368,7 +368,7 @@ public class LFSByteArray extends ByteArray
 			actionType = readInt();
 			state = readInt();
 			varsLength = readInt();
-			time = readLong();
+			time = readDouble();
 		}
 		if (null == varsMeta) {
 			varsMeta = new int[varsLength * 3];
@@ -435,6 +435,42 @@ public class LFSByteArray extends ByteArray
 		return length;
 	}
 
+	public int getType(int index)
+	{
+		return varsMeta[index * 3];
+	}
+
+	public String getTypeString(int index)
+	{
+		if (index < varsLength && null != varsMeta) {
+			switch (varsMeta[index * 3]) {
+				case EXTERN_TYPE_INT:
+					return "int";
+				case EXTERN_TYPE_LONG:
+					return "long";
+				case EXTERN_TYPE_DOUBLE:
+					return "double";
+				case EXTERN_TYPE_FLOAT:
+					return "float";
+				case EXTERN_TYPE_SHORT:
+					return "short";
+				case EXTERN_TYPE_BYTE:
+					return "byte";
+				case EXTERN_TYPE_BOOLEAN:
+					return "boolean";
+				case EXTERN_TYPE_NULL:
+					return "null";
+				case EXTERN_TYPE_STRING:
+					return "String";
+				case EXTERN_TYPE_STRING_BYTES:
+					return "StringByteArray";
+				default:
+					return "ByteArray";
+			}
+		}
+		return null;
+	}
+
 	public Object get(int index)
 	{
 		if (index < varsLength && null != varsMeta) {
@@ -463,6 +499,27 @@ public class LFSByteArray extends ByteArray
 			}
 		}
 		return null;
+	}
+
+	public double getNumber(int index)
+	{
+		if (index < varsLength && null != varsMeta) {
+			switch (varsMeta[index * 3]) {
+				case EXTERN_TYPE_INT:
+					return getInt(index);
+				case EXTERN_TYPE_LONG:
+					return getLong(index);
+				case EXTERN_TYPE_DOUBLE:
+					return getDouble(index);
+				case EXTERN_TYPE_FLOAT:
+					return getFloat(index);
+				case EXTERN_TYPE_SHORT:
+					return getShort(index);
+				case EXTERN_TYPE_BYTE:
+					return getByte(index);
+			}
+		}
+		return 0;
 	}
 
 	public byte getByte(int index)
@@ -532,7 +589,7 @@ public class LFSByteArray extends ByteArray
 		return null;
 	}
 
-	public byte[] getBytes(int index, byte[] b)
+	public byte[] getByteArray(int index, byte[] b)
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
@@ -552,7 +609,7 @@ public class LFSByteArray extends ByteArray
 		return null;
 	}
 
-	public byte[] getBytes(int index, byte[] b, int off, int len)
+	public byte[] getByteArray(int index, byte[] b, int off, int len)
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
@@ -715,29 +772,24 @@ public class LFSByteArray extends ByteArray
 		return varsLength;
 	}
 
-	public long getTime()
+	public double getTime()
 	{
 		return time;
 	}
 
 	public double getTimeSecond()
 	{
-		return (double)time / 1000000000;
-	}
-
-	public double getTimeMillis()
-	{
-		return (double)time / 1000000;
+		return time / 1000;
 	}
 
 	public String getTimeString()
 	{
-		return String.format("%1$.9f", (double)time / 1000000000);
+		return String.format("%1$.9f", time / 1000);
 	}
 
 	public String getTimeStringMillis()
 	{
-		return String.format("%1$.6f", (double)time / 1000000);
+		return String.format("%1$.6f", time);
 	}
 
 	public long getTotalTimeMillis()
@@ -760,7 +812,7 @@ public class LFSByteArray extends ByteArray
 		varsMeta = null;
 	}
 
-	public interface IStreamParse
+	static public interface IStreamParse
 	{
 		void parseData(byte[] b, int bytesAvalibale, int position, int messageLength);
 	}
