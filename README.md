@@ -1,18 +1,17 @@
 # LFS
-File System（就是要最简单的，而且是最快的）
+File System（不仅仅是简单）
 
 ######
     写入速度提升 29%，读取速度提升 39%，“快”很任性。
-    和 C 直接读写文件速度几乎一样，意味着几乎没有额外 CPU 消耗，还用过多的解释吗？
 
 非常非常快的文件系统，可以同时存储海量大文件和小文件，高并发<br>
 存储视频音乐和图片等非常棒<br>
-并且可以作为列存储<br>
 
+[LFS API Reference](http://whatcoffee.github.io/LFS-API)
 
 链接：[github](https://github.com/ikCourage/LFS)  [git@osc](https://git.oschina.net/ikCourage/LFS_FREE)<br>
 
-示例：（这不仅是极致简单的，而且是最快的）
+示例：
 
 ```java
 //上传文件，只需一行
@@ -59,8 +58,6 @@ IReadStream readStream = new IReadStream()
 	}
 };
 ```
-
-脚本语言使用 lua，why?因为快且小，而且非常简单<br>
 
 指南针 <img src="http://pic.sucaibar.com/pic/201307/16/1c1cbb2ccd.png" width="50" height="50">
 -
