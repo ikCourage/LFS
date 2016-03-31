@@ -9,25 +9,29 @@ public class LFSByteArray extends ByteArray
 {
 	static public final long UINT_MAX = ((long)1 << 32) - 1;
 
-	static public final int EXTERN_TYPE_BYTE = 1;
-	static public final int EXTERN_TYPE_BOOLEAN = -2;
-	static public final int EXTERN_TYPE_SHORT = 2;
-	static public final int EXTERN_TYPE_INT = 4;
-	static public final int EXTERN_TYPE_LONG = 8;
-	static public final int EXTERN_TYPE_FLOAT = 3;
-	static public final int EXTERN_TYPE_DOUBLE = 7;
-	static public final int EXTERN_TYPE_STRING = -4;
-	static public final int EXTERN_TYPE_STRING_BYTES = -5;
-	static public final int EXTERN_TYPE_BYTES = -3;
-	static public final int EXTERN_TYPE_NULL = -1;
+	static public final int ACTION_TYPE_STATEMENT_LUA = 105;
+	static public final int ACTION_TYPE_STATEMENT = ACTION_TYPE_STATEMENT_LUA;
 
-	static public final int ACTION_TYPE_STATEMENT = 102;
-	
+	static public final int LBY_TYPE_BYTE = 1;
+	static public final int LBY_TYPE_UBYTE = -1;
+	static public final int LBY_TYPE_SHORT = 2;
+	static public final int LBY_TYPE_USHORT = 3;
+	static public final int LBY_TYPE_INT = 4;
+	static public final int LBY_TYPE_UINT = 5;
+	static public final int LBY_TYPE_FLOAT = 6;
+	static public final int LBY_TYPE_DOUBLE = 7;
+	static public final int LBY_TYPE_LONG = 8;
+	static public final int LBY_TYPE_STRING = -4;
+	static public final int LBY_TYPE_STRING_BYTES = -5;
+	static public final int LBY_TYPE_BYTES = -3;
+	static public final int LBY_TYPE_BOOLEAN = -2;
+	static public final int LBY_TYPE_NULL = 0;
+
 	static public final int WRITE_TYPE_NORMAL = 0;
 	static public final int WRITE_TYPE_STREAM_TRY_READ = 1;
 	static public final int WRITE_TYPE_STREAM_TRY_SKIP = 2;
 
-	public int STRING_TYPE = EXTERN_TYPE_STRING_BYTES;
+	public int STRING_TYPE = LBY_TYPE_STRING_BYTES;
 
 	protected int[] varsMeta;
 	protected int varsLength;
@@ -69,14 +73,21 @@ public class LFSByteArray extends ByteArray
 
 	public void putByte(int v)
 	{
-		writeByte(EXTERN_TYPE_BYTE);
+		writeByte(LBY_TYPE_BYTE);
+		writeByte(v);
+		varsLength++;
+	}
+
+	public void putUByte(int v)
+	{
+		writeByte(LBY_TYPE_UBYTE);
 		writeByte(v);
 		varsLength++;
 	}
 
 	public void putBytes(byte[] v)
 	{
-		writeByte(EXTERN_TYPE_BYTES);
+		writeByte(LBY_TYPE_BYTES);
 		writeInt(v.length);
 		write(v);
 		writeByte(0);
@@ -85,7 +96,7 @@ public class LFSByteArray extends ByteArray
 
 	public void putBytes(byte[] v, int off, int len)
 	{
-		writeByte(EXTERN_TYPE_BYTES);
+		writeByte(LBY_TYPE_BYTES);
 		writeInt(len);
 		write(v, off, len);
 		writeByte(0);
@@ -94,55 +105,69 @@ public class LFSByteArray extends ByteArray
 
 	public void putBoolean(boolean v)
 	{
-		writeByte(EXTERN_TYPE_BOOLEAN);
+		writeByte(LBY_TYPE_BOOLEAN);
 		writeBoolean(v);
 		varsLength++;
 	}
 
 	public void putNull()
 	{
-		writeByte(EXTERN_TYPE_NULL);
+		writeByte(LBY_TYPE_NULL);
 		varsLength++;
 	}
 
 	public void putShort(int v)
 	{
-		writeByte(EXTERN_TYPE_SHORT);
+		writeByte(LBY_TYPE_SHORT);
+		writeShort(v);
+		varsLength++;
+	}
+
+	public void putUShort(int v)
+	{
+		writeByte(LBY_TYPE_USHORT);
 		writeShort(v);
 		varsLength++;
 	}
 
 	public void putChar(int v)
 	{
-		writeByte(EXTERN_TYPE_SHORT);
+		writeByte(LBY_TYPE_SHORT);
 		writeChar(v);
 		varsLength++;
 	}
 
 	public void putInt(int v)
 	{
-		writeByte(EXTERN_TYPE_INT);
+		writeByte(LBY_TYPE_INT);
+		writeInt(v);
+		varsLength++;
+	}
+
+	public void putUInt(int v)
+	{
+		writeByte(LBY_TYPE_UINT);
 		writeInt(v);
 		varsLength++;
 	}
 
 	public void putLong(long v)
 	{
-		writeByte(EXTERN_TYPE_LONG);
+		writeByte(LBY_TYPE_LONG);
 		writeLong(v);
 		varsLength++;
 	}
 
 	public void putFloat(float v)
 	{
-		writeByte(EXTERN_TYPE_FLOAT);
+		writeByte(LBY_TYPE_FLOAT);
 		writeFloat(v);
 		varsLength++;
 	}
 
 	public void putDouble(double v)
 	{
-		writeByte(EXTERN_TYPE_DOUBLE);
+		writeByte(LBY_TYPE_DOUBLE);
 		writeDouble(v);
 		varsLength++;
 	}
@@ -163,7 +188,7 @@ public class LFSByteArray extends ByteArray
 	{
 		try {
 			byte[] b = v.getBytes("UTF-8");
-			writeByte(EXTERN_TYPE_STRING_BYTES);
+			writeByte(LBY_TYPE_STRING_BYTES);
 			writeInt(b.length);
 			write(b);
 			writeByte(0);
@@ -194,7 +219,7 @@ public class LFSByteArray extends ByteArray
 	{
 		int len = position;
 		switch (actionType) {
-			case ACTION_TYPE_STATEMENT:
+			case ACTION_TYPE_STATEMENT_LUA:
 				position = 8;
 				writeInt(varsLength);
 				break;
@@ -370,6 +395,12 @@ public class LFSByteArray extends ByteArray
 			varsLength = readInt();
 			time = readDouble();
 		}
+		switch (actionType) {
+			case ACTION_TYPE_STATEMENT_LUA:
+				break;
+			default:
+				return -1;
+		}
 		if (null == varsMeta) {
 			varsMeta = new int[varsLength * 3];
 		}
@@ -389,20 +420,25 @@ public class LFSByteArray extends ByteArray
 			varsMeta[j++] = t;
 			varsMeta[j] = position;
 			switch (t) {
-				case EXTERN_TYPE_INT:
-				case EXTERN_TYPE_LONG:
-				case EXTERN_TYPE_SHORT:
+				case LBY_TYPE_BYTE:
+				case LBY_TYPE_INT:
+				case LBY_TYPE_LONG:
+				case LBY_TYPE_SHORT:
+				case LBY_TYPE_NULL:
 					break;
-				case EXTERN_TYPE_DOUBLE:
-				case EXTERN_TYPE_FLOAT:
-					t++;
+				case LBY_TYPE_USHORT:
+					t = 2;
 					break;
-				case EXTERN_TYPE_BYTE:
-				case EXTERN_TYPE_BOOLEAN:
+				case LBY_TYPE_UINT:
+				case LBY_TYPE_FLOAT:
+					t = 4;
+					break;
+				case LBY_TYPE_DOUBLE:
+					t = 8;
+					break;
+				case LBY_TYPE_UBYTE:
+				case LBY_TYPE_BOOLEAN:
 					t = 1;
-					break;
-				case EXTERN_TYPE_NULL:
-					t = 0;
 					break;
 				default:
 					if (position + 5 <= len) {
@@ -444,28 +480,34 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			switch (varsMeta[index * 3]) {
-				case EXTERN_TYPE_INT:
+				case LBY_TYPE_INT:
 					return "int";
-				case EXTERN_TYPE_LONG:
+				case LBY_TYPE_UINT:
+					return "uint";
+				case LBY_TYPE_LONG:
 					return "long";
-				case EXTERN_TYPE_DOUBLE:
+				case LBY_TYPE_DOUBLE:
 					return "double";
-				case EXTERN_TYPE_FLOAT:
+				case LBY_TYPE_FLOAT:
 					return "float";
-				case EXTERN_TYPE_SHORT:
+				case LBY_TYPE_SHORT:
 					return "short";
-				case EXTERN_TYPE_BYTE:
+				case LBY_TYPE_USHORT:
+					return "ushort";
+				case LBY_TYPE_BYTE:
 					return "byte";
-				case EXTERN_TYPE_BOOLEAN:
+				case LBY_TYPE_UBYTE:
+					return "ubyte";
+				case LBY_TYPE_BOOLEAN:
 					return "boolean";
-				case EXTERN_TYPE_NULL:
+				case LBY_TYPE_NULL:
 					return "null";
-				case EXTERN_TYPE_STRING:
+				case LBY_TYPE_STRING:
 					return "String";
-				case EXTERN_TYPE_STRING_BYTES:
-					return "StringByteArray";
+				case LBY_TYPE_STRING_BYTES:
+					return "StringBytes";
 				default:
-					return "ByteArray";
+					return "Bytes";
 			}
 		}
 		return null;
@@ -475,24 +517,30 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			switch (varsMeta[index * 3]) {
-				case EXTERN_TYPE_INT:
+				case LBY_TYPE_INT:
 					return getInt(index);
-				case EXTERN_TYPE_LONG:
+				case LBY_TYPE_UINT:
+					return getUInt(index);
+				case LBY_TYPE_LONG:
 					return getLong(index);
-				case EXTERN_TYPE_DOUBLE:
+				case LBY_TYPE_DOUBLE:
 					return getDouble(index);
-				case EXTERN_TYPE_FLOAT:
+				case LBY_TYPE_FLOAT:
 					return getFloat(index);
-				case EXTERN_TYPE_SHORT:
+				case LBY_TYPE_SHORT:
 					return getShort(index);
-				case EXTERN_TYPE_BYTE:
+				case LBY_TYPE_USHORT:
+					return getUShort(index);
+				case LBY_TYPE_BYTE:
 					return getByte(index);
-				case EXTERN_TYPE_BOOLEAN:
+				case LBY_TYPE_UBYTE:
+					return getUByte(index);
+				case LBY_TYPE_BOOLEAN:
 					return getBoolean(index);
-				case EXTERN_TYPE_NULL:
+				case LBY_TYPE_NULL:
 					return null;
-				case EXTERN_TYPE_STRING:
-				case EXTERN_TYPE_STRING_BYTES:
+				case LBY_TYPE_STRING:
+				case LBY_TYPE_STRING_BYTES:
 					return getString(index);
 				default:
 					return getBytes(index);
@@ -505,18 +553,24 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			switch (varsMeta[index * 3]) {
-				case EXTERN_TYPE_INT:
+				case LBY_TYPE_INT:
 					return getInt(index);
-				case EXTERN_TYPE_LONG:
+				case LBY_TYPE_UINT:
+					return getUInt(index);
+				case LBY_TYPE_LONG:
 					return getLong(index);
-				case EXTERN_TYPE_DOUBLE:
+				case LBY_TYPE_DOUBLE:
 					return getDouble(index);
-				case EXTERN_TYPE_FLOAT:
+				case LBY_TYPE_FLOAT:
 					return getFloat(index);
-				case EXTERN_TYPE_SHORT:
+				case LBY_TYPE_SHORT:
 					return getShort(index);
-				case EXTERN_TYPE_BYTE:
+				case LBY_TYPE_USHORT:
+					return getUShort(index);
+				case LBY_TYPE_BYTE:
 					return getByte(index);
+				case LBY_TYPE_UBYTE:
+					return getUByte(index);
 			}
 		}
 		return 0;
@@ -526,21 +580,25 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_BYTE) {
-				position = varsMeta[++index];
-				return readByte();
+			switch (varsMeta[index]) {
+				case LBY_TYPE_BYTE:
+				case LBY_TYPE_UBYTE:
+					position = varsMeta[++index];
+					return readByte();
 			}
 		}
 		return 0;
 	}
-
-	public int getUnsignedByte(int index)
+	
+	public int getUByte(int index)
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_BYTE) {
-				position = varsMeta[++index];
-				return readUnsignedByte();
+			switch (varsMeta[index]) {
+				case LBY_TYPE_UBYTE:
+				case LBY_TYPE_BYTE:
+					position = varsMeta[++index];
+					return readUByte();
 			}
 		}
 		return 0;
@@ -551,9 +609,9 @@ public class LFSByteArray extends ByteArray
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			switch (varsMeta[index]) {
-				case EXTERN_TYPE_BYTES:
-				case EXTERN_TYPE_STRING:
-				case EXTERN_TYPE_STRING_BYTES:
+				case LBY_TYPE_BYTES:
+				case LBY_TYPE_STRING:
+				case LBY_TYPE_STRING_BYTES:
 					position = varsMeta[++index];
 					index = varsMeta[++index];
 					if (index > 0) {
@@ -572,9 +630,9 @@ public class LFSByteArray extends ByteArray
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			switch (varsMeta[index]) {
-				case EXTERN_TYPE_BYTES:
-				case EXTERN_TYPE_STRING:
-				case EXTERN_TYPE_STRING_BYTES:
+				case LBY_TYPE_BYTES:
+				case LBY_TYPE_STRING:
+				case LBY_TYPE_STRING_BYTES:
 					position = varsMeta[++index];
 					index = varsMeta[++index];
 					if (index > 0 && len > 0) {
@@ -594,9 +652,9 @@ public class LFSByteArray extends ByteArray
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			switch (varsMeta[index]) {
-				case EXTERN_TYPE_BYTES:
-				case EXTERN_TYPE_STRING:
-				case EXTERN_TYPE_STRING_BYTES:
+				case LBY_TYPE_BYTES:
+				case LBY_TYPE_STRING:
+				case LBY_TYPE_STRING_BYTES:
 					position = varsMeta[++index];
 					index = varsMeta[++index];
 					if (index > 0) {
@@ -614,9 +672,9 @@ public class LFSByteArray extends ByteArray
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			switch (varsMeta[index]) {
-				case EXTERN_TYPE_BYTES:
-				case EXTERN_TYPE_STRING:
-				case EXTERN_TYPE_STRING_BYTES:
+				case LBY_TYPE_BYTES:
+				case LBY_TYPE_STRING:
+				case LBY_TYPE_STRING_BYTES:
 					position = varsMeta[++index];
 					index = varsMeta[++index];
 					if (index > 0 && len > 0) {
@@ -634,8 +692,8 @@ public class LFSByteArray extends ByteArray
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
 			switch (varsMeta[index]) {
-				case EXTERN_TYPE_STRING:
-				case EXTERN_TYPE_STRING_BYTES:
+				case LBY_TYPE_STRING:
+				case LBY_TYPE_STRING_BYTES:
 					position = varsMeta[++index];
 					index = varsMeta[++index];
 					if (index > 0) {
@@ -645,7 +703,7 @@ public class LFSByteArray extends ByteArray
 							return new String(b, "UTF-8");
 						} catch (Exception e) {}
 					}
-					break;
+					return "";
 			}
 		}
 		return null;
@@ -655,7 +713,7 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_BOOLEAN) {
+			if (varsMeta[index] == LBY_TYPE_BOOLEAN) {
 				position = varsMeta[++index];
 				return readBoolean();
 			}
@@ -667,21 +725,25 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_SHORT) {
-				position = varsMeta[++index];
-				return readShort();
+			switch (varsMeta[index]) {
+				case LBY_TYPE_SHORT:
+				case LBY_TYPE_USHORT:
+					position = varsMeta[++index];
+					return readShort();
 			}
 		}
 		return 0;
 	}
 
-	public int getUnsignedShort(int index)
+	public int getUShort(int index)
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_SHORT) {
-				position = varsMeta[++index];
-				return readUnsignedShort();
+			switch (varsMeta[index]) {
+				case LBY_TYPE_USHORT:
+				case LBY_TYPE_SHORT:
+					position = varsMeta[++index];
+					return readUShort();
 			}
 		}
 		return 0;
@@ -691,7 +753,7 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_SHORT) {
+			if (varsMeta[index] == LBY_TYPE_SHORT) {
 				position = varsMeta[++index];
 				return readChar();
 			}
@@ -703,9 +765,25 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_INT) {
-				position = varsMeta[++index];
-				return readInt();
+			switch (varsMeta[index]) {
+				case LBY_TYPE_INT:
+				case LBY_TYPE_UINT:
+					position = varsMeta[++index];
+					return readInt();
+			}
+		}
+		return 0;
+	}
+	
+	public long getUInt(int index)
+	{
+		if (index < varsLength && null != varsMeta) {
+			index *= 3;
+			switch (varsMeta[index]) {
+				case LBY_TYPE_UINT:
+				case LBY_TYPE_INT:
+					position = varsMeta[++index];
+					return readUInt();
 			}
 		}
 		return 0;
@@ -715,7 +793,7 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_LONG) {
+			if (varsMeta[index] == LBY_TYPE_LONG) {
 				position = varsMeta[++index];
 				return readLong();
 			}
@@ -727,7 +805,7 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_FLOAT) {
+			if (varsMeta[index] == LBY_TYPE_FLOAT) {
 				position = varsMeta[++index];
 				return readFloat();
 			}
@@ -739,7 +817,7 @@ public class LFSByteArray extends ByteArray
 	{
 		if (index < varsLength && null != varsMeta) {
 			index *= 3;
-			if (varsMeta[index] == EXTERN_TYPE_DOUBLE) {
+			if (varsMeta[index] == LBY_TYPE_DOUBLE) {
 				position = varsMeta[++index];
 				return readDouble();
 			}

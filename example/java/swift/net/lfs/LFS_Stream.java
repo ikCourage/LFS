@@ -83,36 +83,31 @@ public class LFS_Stream
 				lb.reset();
 //				lb.setStatement(""
 //						//默认标记失败
-//						+ "setState(-1);"
-//						+ "local r = data_open(vars[0]);"
-//						+ "if (r == 1) then;"
-//						+ "	local id = vars[1];"
-//						+ "	local offset = vars[2];"
-//						+ "	local size = vars[3];"
-//						+ "	r = data_read(id, offset, size);"
-//						+ "	if (r >= 0) then;"
-//						+ "		local dataData = vars.dataData;"
+//						+ "out:setState(-1);"
+//						+ "local id = vars[1];"
+//						+ "local offset = vars[2];"
+//						+ "local size = vars[3];"
+//						+ "local f = LFS.DataFile.new(vars[0]);"
+//						+ "if (f:read(id, offset, size) >= 0) then;"
 //						//标记成功（0: 已经读完，1: 还没有读完）
-//						+ "		setState(dataData.sizeTotal > offset + dataData.size and 1 or 0);"
+//						+ "	out:setState(buffer.sizeTotal > offset + buffer.length and 1 or 0);"
 //						//是否是第一次读取，如果是，则写入文件总大小
-//						+ "		if (vars[4]) then "
-//						+ "			putLong(dataData.sizeTotal);"
-//						+ "		end;"
-//						//仅返回一个 ByteArray 变量，用来方便【流式读取字节】
-//						//成功或失败的状态，通过 setState 返回（从而避免引入多个变量）
-//						+ "		putBytes(dataData);"
+//						+ "	if (vars[4]) then;"
+//						+ "		out:putLong(buffer.sizeTotal);"
 //						+ "	end;"
-//						+ "end;"
+//						//返回读取的数据
+//						+ "	out:putBytes(buffer);"
+//						+ "end"
 //						+ "");
-				//这里和上面的效果一样，这里进行压缩来节省带宽 363 213
-				lb.setStatement("setState(-1);if(data_open(vars[0])==1)then;if(data_read(vars[1],vars[2],vars[3])>=0)then;d=vars.dataData;setState(d.sizeTotal>vars[2]+d.size and 1 or 0);if(vars[4])then;putLong(d.sizeTotal);end;putBytes(d);end;end");
+				//这里和上面的效果一样，这里进行压缩来节省带宽 305 222
+				lb.setStatement("out:setState(-1);if(LFS.DataFile.new(vars[0]):read(vars[1],vars[2],vars[3])>=0)then;out:setState(buffer.sizeTotal>vars[2]+buffer.length and 1 or 0);if(vars[4])then;out:putLong(buffer.sizeTotal);end;out:putBytes(buffer);end");
 
 				lb.putString(fileName);
 				//why?数据不会丢失吗？
 				//在 LFS 中不会
-				lb.putInt((int)fileId);
+				lb.putUInt((int)fileId);
 				lb.putLong(offset);
-				lb.putInt(size);
+				lb.putUInt(size);
 				//是否是第一次读取
 				if (sizeTotalReaded == 0) {
 					lb.putBoolean(true);
@@ -120,11 +115,11 @@ public class LFS_Stream
 
 				if (lb.writeTo(con, LFSByteArray.WRITE_TYPE_STREAM_TRY_SKIP) == true) {
 					//变量类型
-					if (in.readByte() != LFSByteArray.EXTERN_TYPE_NULL) {
+					if (in.readByte() != LFSByteArray.LBY_TYPE_NULL) {
 						b = lb.getState() == 1 ? true : false;
 						if (sizeTotal == 0) {
 							sizeTotal = in.readLong();
-							if (in.readByte() != LFSByteArray.EXTERN_TYPE_NULL) {
+							if (in.readByte() != LFSByteArray.LBY_TYPE_NULL) {
 								//变量长度（因为此处是 putBytes<or putString>，所以还需要读取一个 int 为实际内容的大小，其他类型的变量仅通过类型即可判断大小）
 								size = in.readInt();
 								sizeTotalRead = sizeTotalRead > 0 ? sizeTotalRead : sizeTotal;
@@ -291,51 +286,46 @@ public class LFS_Stream
 					lb.reset();
 //					lb.setStatement(""
 //							//默认标记失败
-//							+ "setState(-1);"
-//							+ "local r = data_open(vars[0]);"
-//							+ "if (r == 1) then;"
-//							+ "	local id = vars[1];"
-//							+ "	local offset = vars[2];"
-//							+ "	local size = vars[3];"
-//							+ "	if (vars[4] > 0) then;"
-//							+ "		id = data_setSize(id, vars[4], 0, 2);"
-//							+ "	end;"
-//							+ "	if (id >= 0) then;"
-//							+ "		id = data_write(id, vars[5], size, offset, 0, 2);"
-//							+ "		if (id >= 0) then;"
-//							+ "			setState(0);"
-//							+ "			putInt(id);"
-//							+ "		end;"
-//							+ "	end;"
-//							+ "	if (id < 0) then;"
-//							+ "		setState(id);"
-//							+ "	end;"
+//							+ "out:setState(-1);"
+//							+ "local id = vars[1];"
+//							+ "local offset = vars[2];"
+//							+ "local size = vars[3];"
+//							+ "local f = LFS.DataFile.new(vars[0]);"
+//							+ "if (vars[4] > 0) then;"
+//							+ "	f:setSize(id, vars[4], 0, 3);"
 //							+ "end;"
+//							+ "id = f:write(id, vars[5], size, offset, 0, 3);"
+//							+ "if (id >= 0) then;"
+//							+ "	out:setState(0);"
+//							+ " out:putUInt(id);"
+//							+ "else;"
+//							+ "	out:setState(id);"
+//							+ "end"
 //							+ "");
-					//这里和上面的效果一样，这里进行压缩来节省带宽 364 234
-					lb.setStatement("setState(-1);if(data_open(vars[0])==1)then;i=vars[1];t=vars[4];if(t>0)then;i=data_setSize(i,t,0,2);end;if(i>=0)then;i=data_write(i,vars[5],vars[3],vars[2],0,2);if(i>=0)then;setState(0);putInt(i);end;end;if(i<0)then;setState(i);end;end");
+					//这里和上面的效果一样，这里进行压缩来节省带宽 296 213
+					lb.setStatement("out:setState(-1);i=vars[1];f=LFS.DataFile.new(vars[0]);if(vars[4]>0)then;i=f:setSize(i,vars[4],0,3);end;i=f:write(i,vars[5],vars[3],vars[2],0,3);if(i>=0)then;out:setState(0);out:putUInt(i);else;out:setState(i);end");
 
 					lb.putString(fileName);
 					if (fileId < 0) {
 						lb.putLong(-1);
 					}
 					else {
-						lb.putInt((int)fileId);
+						lb.putUInt((int)fileId);
 					}
 					if (offset > LFSByteArray.UINT_MAX) {
 						lb.putLong(offset);
 					}
 					else {
-						lb.putInt((int)offset);
+						lb.putUInt((int)offset);
 					}
-					lb.putInt(size);
+					lb.putUInt(size);
 					//是否是第一次写入
 					if (sizeTotalWrited == 0) {
 						if (sizeTotal > LFSByteArray.UINT_MAX) {
 							lb.putLong(sizeTotal);
 						}
 						else {
-							lb.putInt((int)sizeTotal);
+							lb.putUInt((int)sizeTotal);
 						}
 					}
 					else {
@@ -344,7 +334,7 @@ public class LFS_Stream
 					lb.putBytes(buffer, 0, size);
 
 					if (lb.writeTo(con) == true) {
-						fileId = lb.getInt(0);
+						fileId = lb.getUInt(0);
 						offset += size;
 						sizeTotalWrited += size;
 						writeStream.progress(buffer, size, sizeTotal, sizeTotalWrite, sizeTotalWrited, offset);

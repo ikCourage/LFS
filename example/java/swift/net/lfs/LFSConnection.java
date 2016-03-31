@@ -1,7 +1,5 @@
 package swift.net.lfs;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.Socket;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -42,45 +40,8 @@ public class LFSConnection
 		}
 		if (null == socket) {
 			try {
-				ByteArray b = new ByteArray(12);
 				socket = new Socket(SERVER_HOST, SERVER_PORT);
-				InputStream in = socket.getInputStream();
-				int size = 4;
-				int bytesAvalibale = 0;
-				while (b.position < size) {
-					bytesAvalibale = in.read(b.buf, b.position, size - b.position);
-					if (bytesAvalibale > 0) {
-						b.position += bytesAvalibale;
-					}
-					else if (bytesAvalibale < 0) {
-						socket.close();
-						throw new IOException("Broken Pipe");
-					}
-				}
-				b.position = 0;
-				size = b.readInt() + 4;
-				b.ensureCapacity(size);
-				while (b.position < size) {
-					bytesAvalibale = in.read(b.buf, b.position, size - b.position);
-					if (bytesAvalibale > 0) {
-						b.position += bytesAvalibale;
-					}
-					else if (bytesAvalibale < 0) {
-						socket.close();
-						throw new IOException("Broken Pipe");
-					}
-				}
-				b.position = 4;
-				int status = b.readInt();
-				b.clear();
-				if (status != 0) {
-					System.out.println("connection closed. status: " + status);
-					socket.close();
-					socket = null;
-				}
-				else {
-					LENGTH++;
-				}
+				LENGTH++;
 			} catch (Exception e) {
 				socket = null;
 				e.printStackTrace();

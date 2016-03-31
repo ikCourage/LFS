@@ -13,15 +13,15 @@ import swift.net.lfs.LFS_Stream.IReadStream;
 import swift.net.lfs.LFS_Stream.ReadStreamEnum;
 
 /**
- * 这是一个完整的图片服务
- * http://localhost/testimage/123.jpg (事实上，后缀是忽略的，只是为了更像普通文件而已)
+ * 一个流媒体服务，既可以浏览图片，也可以播放视频
+ * http://localhost/testmeida/123.jpg (事实上，后缀是忽略的，只是为了更像普通文件而已)
  */
-@WebServlet("/testimage/*")
-public class TestImageServlet extends HttpServlet
+@WebServlet("/testmeida/*")
+public class TestMediaServlet extends HttpServlet
 {
 	private static final long serialVersionUID = 1L;
 
-	static private String FILE_NAME = "TestImage/Image";
+	static private String FILE_NAME = "TestMedia/Media";
 
 	public TestImageServlet()
 	{
@@ -40,15 +40,53 @@ public class TestImageServlet extends HttpServlet
 				if (path.length() != 0) {
 					try {
 						long fileId = Long.parseLong(path);
+						
+						long start = 0;
+						long end = 0;
+						if (null != request.getParameter("start")) {
+							start = Long.parseLong(request.getParameter("start"));
+						}
+						if (null != request.getParameter("end")) {
+							end = Long.parseLong(request.getParameter("end"));
+						}
+						if (start <= 0 && end <= 0) {
+							String range = request.getHeader("Range");
+							if (null != range) {
+								range = range.replaceAll("[^\\d\\-]", "");
+								String[] ranges = range.split("-");
+								if (ranges.length >= 1) {
+									start = Long.parseLong(ranges[0]);
+								}
+								if (ranges.length >= 2) {
+									end = Long.parseLong(ranges[1]);
+								}
+							}
+						}
+						if (start < 0) {
+							start = 0;
+						}
+						if (end < 0) {
+							end = 0;
+						}
+						end = end > start ? end - start + 1 : 0;
 
 						IReadStream readStream = new IReadStream()
 						{
 							@Override
 							public boolean init(long fileId, int size, long sizeTotal, long sizeTotalRead, long offset)
 							{
+								//response.setHeader("Content-Type", "video/mp4");
 								//设置客户端缓存
 								response.setHeader("Cache-Control", "max-age=604800");
 								response.setIntHeader("Etag", 0);
+								response.setContentLengthLong(sizeTotalRead);
+								if (null != request.getHeader("Range")) {
+									response.setHeader("Content-Range", "bytes " + offset + "-" + (sizeTotalRead + offset - 1) + "/" + sizeTotal);
+									response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
+								}
+								else {
+									response.setHeader("Accept-Ranges", "bytes");
+								}
 								return true;
 							}
 
@@ -63,7 +101,7 @@ public class TestImageServlet extends HttpServlet
 							}
 						};
 
-						switch ((int)LFS_Stream.readStream(FILE_NAME, fileId, readStream)) {
+						switch ((int)LFS_Stream.readStream(FILE_NAME, fileId, readStream, start, end)) {
 							case ReadStreamEnum.ERROR_SOCKET_BACK_VALUE:
 								response.setStatus(HttpServletResponse.SC_NOT_FOUND);
 								break;

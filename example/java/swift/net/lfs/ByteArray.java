@@ -437,7 +437,7 @@ public class ByteArray {
 	 *             another I/O error occurs.
 	 * @see         java.io.FilterInputStream#in
 	 */
-	public final int readUnsignedByte() {
+	public final int readUByte() {
 		int ch = read() & 0xFF;
 		return ch;
 	}
@@ -482,7 +482,7 @@ public class ByteArray {
 	 *             another I/O error occurs.
 	 * @see        java.io.FilterInputStream#in
 	 */
-	public final int readUnsignedShort() {
+	public final int readUShort() {
 		int ch1 = read() & 0xFF;
 		int ch2 = read() & 0xFF;
 		return (ch1 << 8) + (ch2 << 0);
@@ -530,6 +530,31 @@ public class ByteArray {
 	 */
 	public final int readInt() {
 		int ch1 = read();
+		int ch2 = read() & 0xFF;
+		int ch3 = read() & 0xFF;
+		int ch4 = read() & 0xFF;
+		return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
+	}
+
+	/**
+	 * See the general contract of the <code>readInt</code>
+	 * method of <code>DataInput</code>.
+	 * <p>
+	 * Bytes
+	 * for this operation are read from the contained
+	 * input stream.
+	 *
+	 * @return     the next four bytes of this input stream, interpreted as an
+	 *             <code>int</code>.
+	 * @exception  EOFException  if this input stream reaches the end before
+	 *               reading four bytes.
+	 * @exception  IOException   the stream has been closed and the contained
+	 *             input stream does not support reading after close, or
+	 *             another I/O error occurs.
+	 * @see        java.io.FilterInputStream#in
+	 */
+	public final long readUInt() {
+		int ch1 = read() & 0xFF;
 		int ch2 = read() & 0xFF;
 		int ch3 = read() & 0xFF;
 		int ch4 = read() & 0xFF;
